@@ -13,6 +13,11 @@ class ExampleTest extends TestCase
     {
         $response = $this->get(route('home'));
 
-        $response->assertOk();
+        $response
+            ->assertOk()
+            ->assertSee('property="og:image"', false)
+            ->assertSee(asset('og-image.png'), false)
+            ->assertSee('/favicon.svg', false)
+            ->assertSee('/apple-touch-icon.png', false);
     }
 }

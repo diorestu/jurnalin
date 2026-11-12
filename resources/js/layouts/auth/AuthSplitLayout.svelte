@@ -28,7 +28,11 @@
             href={home()}
             class="relative z-20 flex items-center text-lg font-medium"
         >
-            <AppLogoIcon class="mr-2 size-8 fill-current text-white" />
+            <span
+                class="mr-2 flex size-9 items-center justify-center overflow-hidden rounded-md bg-white"
+            >
+                <AppLogoIcon class="size-8 object-contain" />
+            </span>
             {name}
         </Link>
     </div>

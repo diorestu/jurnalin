@@ -11,7 +11,6 @@
     import NavFooter from '@/components/NavFooter.svelte';
     import NavMain from '@/components/NavMain.svelte';
     import NavUser from '@/components/NavUser.svelte';
-    import TeamSwitcher from '@/components/TeamSwitcher.svelte';
     import {
         Sidebar,
         SidebarContent,
@@ -88,11 +87,6 @@
                         </Link>
                     {/snippet}
                 </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarMenu>
-        <SidebarMenu>
-            <SidebarMenuItem>
-                <TeamSwitcher />
             </SidebarMenuItem>
         </SidebarMenu>
     </SidebarHeader>
