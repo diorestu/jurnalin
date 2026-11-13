@@ -1,447 +1,486 @@
 <script lang="ts">
-    import { Link, page } from '@inertiajs/svelte';
+    import { Link } from '@inertiajs/svelte';
+    import ArrowRight from '@lucide/svelte/icons/arrow-right';
+    import ArrowRightLeft from '@lucide/svelte/icons/arrow-right-left';
+    import BookOpen from '@lucide/svelte/icons/book-open';
+    import Building2 from '@lucide/svelte/icons/building-2';
+    import ChevronDown from '@lucide/svelte/icons/chevron-down';
+    import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
+    import FileSearch from '@lucide/svelte/icons/file-search';
+    import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
+    import ShieldCheck from '@lucide/svelte/icons/shield-check';
+    import Truck from '@lucide/svelte/icons/truck';
     import AppHead from '@/components/AppHead.svelte';
+    import AppLogoIcon from '@/components/AppLogoIcon.svelte';
+    import ProductPreview from '@/components/landing/ProductPreview.svelte';
+    import ReportPreview from '@/components/landing/ReportPreview.svelte';
     import { toUrl } from '@/lib/utils';
     import { dashboard, login } from '@/routes';
     import { register } from '@/routes';
-    import type { Team } from '@/types';
+    import { index as teamsIndex } from '@/routes/teams';
+    import type { Team, User } from '@/types';
 
-    const auth = $derived(page.props.auth);
-    const currentTeam = $derived(page.props.currentTeam as Team | null);
-    const dashboardUrl = $derived(
-        currentTeam ? dashboard(currentTeam.slug) : '/',
+    let {
+        name,
+        auth,
+        currentTeam,
+    }: {
+        name: string;
+        auth: { user: User | null };
+        currentTeam: Team | null;
+    } = $props();
+
+    const isAuthenticated = $derived(Boolean(auth.user));
+    const authenticatedUrl = $derived(
+        currentTeam ? dashboard(currentTeam.slug) : teamsIndex(),
     );
+    const authenticatedLabel = $derived(
+        currentTeam ? 'Buka dashboard' : 'Pilih perusahaan',
+    );
+
+    const linkBase =
+        'inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#021d4f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#9dbcf0]';
+    const primaryLink = `${linkBase} bg-[#021d4f] text-white hover:bg-[#082f68]`;
+    const secondaryLink = `${linkBase} border border-border bg-background text-foreground hover:bg-muted`;
+
+    const capabilities = [
+        { label: 'Multi-perusahaan', icon: Building2 },
+        { label: 'Jurnal debit & kredit', icon: BookOpen },
+        { label: 'Approval transaksi', icon: ClipboardCheck },
+        { label: 'Impor & ekspor COA', icon: ArrowRightLeft },
+    ];
+
+    const featureGroups = [
+        {
+            title: 'Jurnal yang membantu Anda berpikir',
+            description:
+                'Gunakan jurnal manual atau template, temukan akun COA lebih cepat, dan jaga debit serta kredit tetap seimbang.',
+            icon: BookOpen,
+        },
+        {
+            title: 'Transaksi yang mengikuti alur bisnis',
+            description:
+                'Kelola penjualan dan piutang serta pembelian dan utang, dari dokumen awal hingga pembayaran dan retur.',
+            icon: ArrowRightLeft,
+        },
+        {
+            title: 'Kontrol sebelum angka menjadi laporan',
+            description:
+                'Tinjau draf, jalankan persetujuan, kunci periode, buat pembalikan, dan telusuri riwayat perubahan.',
+            icon: ShieldCheck,
+        },
+    ];
+
+    const workflowSteps = [
+        {
+            title: 'Catat transaksi',
+            description:
+                'Pilih template atau gunakan jurnal manual sesuai kebutuhan transaksi.',
+        },
+        {
+            title: 'Tinjau dan setujui',
+            description:
+                'Periksa keseimbangan dan ajukan transaksi ke supervisor sebelum diposting.',
+        },
+        {
+            title: 'Baca laporan',
+            description:
+                'Gunakan filter periode untuk memahami posisi dan kinerja keuangan.',
+        },
+    ];
+
+    const faqs = [
+        {
+            question: 'Apakah bisa membuat jurnal manual tanpa template?',
+            answer:
+                'Bisa. Anda dapat memilih akun, tanggal, dan nominal debit atau kredit secara langsung tanpa memakai template.',
+        },
+        {
+            question: 'Bagaimana sistem menjaga debit dan kredit tetap seimbang?',
+            answer:
+                'Saat satu sisi diisi, sisi lainnya pada baris yang sama dinonaktifkan. Nominal pasangan juga disarankan pada baris berikutnya, dan jurnal harus seimbang sebelum diposting.',
+        },
+        {
+            question: 'Apakah setiap transaksi harus melalui persetujuan?',
+            answer:
+                'Transaksi keuangan yang dibuat staf masuk sebagai draf untuk ditinjau supervisor. Pemilik atau admin tetap dapat menjalankan kewenangan sesuai perannya.',
+        },
+        {
+            question: 'Bisakah COA dipindahkan melalui Excel?',
+            answer:
+                'Bisa. Daftar akun dapat diimpor dan diekspor dalam format Excel dengan validasi kode, nama, jenis, status aktif, dan penanda kas atau bank.',
+        },
+        {
+            question: 'Laporan apa saja yang tersedia?',
+            answer:
+                'Tersedia neraca saldo, laporan keuangan, laporan laba rugi, dan buku besar dengan filter periode yang sesuai.',
+        },
+    ];
+
+    const currentYear = new Date().getFullYear();
 </script>
 
-<AppHead title="Welcome">
-    <link rel="preconnect" href="https://rsms.me/" />
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
-</AppHead>
+<AppHead title="Software Akuntansi" />
 
-<div
-    class="flex min-h-screen flex-col items-center bg-[#FDFDFC] p-6 text-[#1b1b18] lg:justify-center lg:p-8 dark:bg-[#0a0a0a]"
->
+<div class="min-h-screen overflow-x-clip bg-background text-foreground">
     <header
-        class="mb-6 w-full max-w-[335px] text-sm not-has-[nav]:hidden lg:max-w-4xl"
+        class="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85"
     >
-        <nav class="flex items-center justify-end gap-4">
-            {#if auth.user}
-                <Link
-                    href={toUrl(dashboardUrl)}
-                    class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
+        <nav
+            class="mx-auto flex min-h-18 max-w-7xl flex-wrap items-center gap-2 px-4 py-3 sm:h-18 sm:flex-nowrap sm:gap-4 sm:px-6 sm:py-0 lg:px-8"
+            aria-label="Navigasi utama"
+        >
+            <a
+                href="/"
+                class="flex min-w-0 items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#021d4f] focus-visible:ring-offset-2"
+                aria-label={name}
+            >
+                <span
+                    class="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white ring-1 ring-border"
                 >
-                    Dashboard
-                </Link>
-            {:else}
-                <Link
-                    href={toUrl(login())}
-                    class="inline-block rounded-sm border border-transparent px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#19140035] dark:text-[#EDEDEC] dark:hover:border-[#3E3E3A]"
+                    <AppLogoIcon class="size-8 object-contain" />
+                </span>
+                <span
+                    class="max-w-48 truncate text-sm font-bold sm:max-w-none sm:text-lg"
+                    data-test="landing-brand-name"
                 >
-                    Log in
-                </Link>
-                <Link
-                    href={toUrl(register())}
-                    class="inline-block rounded-sm border border-[#19140035] px-5 py-1.5 text-sm leading-normal text-[#1b1b18] hover:border-[#1915014a] dark:border-[#3E3E3A] dark:text-[#EDEDEC] dark:hover:border-[#62605b]"
-                >
-                    Register
-                </Link>
-            {/if}
+                    {name}
+                </span>
+            </a>
+
+            <div class="ml-auto hidden items-center gap-7 lg:flex">
+                <a class="text-sm font-medium hover:text-[#021d4f] dark:hover:text-[#9dbcf0]" href="#fitur">Fitur</a>
+                <a class="text-sm font-medium hover:text-[#021d4f] dark:hover:text-[#9dbcf0]" href="#cara-kerja">Cara kerja</a>
+                <a class="text-sm font-medium hover:text-[#021d4f] dark:hover:text-[#9dbcf0]" href="#laporan">Laporan</a>
+                <a class="text-sm font-medium hover:text-[#021d4f] dark:hover:text-[#9dbcf0]" href="#faq">FAQ</a>
+            </div>
+
+            <div
+                class="ml-auto flex shrink-0 items-center gap-2 max-sm:w-full lg:ml-5"
+            >
+                {#if isAuthenticated}
+                    <Link
+                        href={toUrl(authenticatedUrl)}
+                        class="{primaryLink} px-3 max-sm:w-full sm:px-5"
+                    >
+                        {authenticatedLabel}
+                    </Link>
+                {:else}
+                    <Link
+                        href={toUrl(login())}
+                        class="{secondaryLink} flex-1 px-4 sm:flex-none"
+                        data-test="landing-header-login"
+                    >
+                        Masuk
+                    </Link>
+                    <Link
+                        href={toUrl(register())}
+                        class="{primaryLink} flex-1 px-3 sm:flex-none sm:px-5"
+                    >
+                        Daftar gratis
+                    </Link>
+                {/if}
+            </div>
         </nav>
     </header>
-    <div
-        class="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0"
-    >
-        <main
-            class="flex w-full max-w-[335px] flex-col-reverse overflow-hidden rounded-lg lg:max-w-4xl lg:flex-row"
+
+    <main>
+        <section
+            class="mx-auto max-w-7xl px-4 pt-14 pb-12 sm:px-6 sm:pt-20 lg:px-8 lg:pt-24 lg:pb-16"
         >
             <div
-                class="flex-1 rounded-br-lg rounded-bl-lg bg-white p-6 pb-12 text-[13px] leading-5 shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-tl-lg lg:rounded-br-none lg:p-20 dark:bg-[#161615] dark:text-[#EDEDEC] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]"
+                class="grid items-center gap-12 lg:grid-cols-[0.86fr_1.14fr] lg:gap-16"
             >
-                <h1 class="mb-1 font-medium">Let's get started</h1>
-                <p class="mb-2 text-[#706f6c] dark:text-[#A1A09A]">
-                    Laravel has an incredibly rich ecosystem. <br />We suggest
-                    starting with the following.
-                </p>
-                <ul class="mb-4 flex flex-col lg:mb-6">
-                    <li
-                        class="relative flex items-center gap-4 py-2 before:absolute before:top-1/2 before:bottom-0 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]"
+                <div class="min-w-0">
+                    <h1
+                        class="max-w-3xl text-4xl leading-[0.98] font-bold tracking-[-0.045em] text-balance sm:text-5xl lg:text-6xl"
                     >
-                        <span class="relative bg-white py-1 dark:bg-[#161615]">
-                            <span
-                                class="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]"
-                            >
-                                <span
-                                    class="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]"
-                                ></span>
-                            </span>
-                        </span>
-                        <span>
-                            Read the
-                            <a
-                                href="https://laravel.com/docs"
-                                target="_blank"
-                                class="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                            >
-                                <span>Documentation</span>
-                                <svg
-                                    width="10"
-                                    height="11"
-                                    viewBox="0 0 10 11"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-2.5 w-2.5"
-                                >
-                                    <path
-                                        d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                        stroke="currentColor"
-                                        stroke-linecap="square"
-                                    />
-                                </svg>
+                        Jurnal rapi. Laporan siap. Bisnis lebih terkendali.
+                    </h1>
+                    <p
+                        class="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground"
+                    >
+                        Catat transaksi sekali, susun debit dan kredit dengan
+                        lebih cepat, lalu pantau laporan keuangan setiap
+                        perusahaan dari satu tempat.
+                    </p>
+                    <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+                        {#if isAuthenticated}
+                            <Link href={toUrl(authenticatedUrl)} class={primaryLink}>
+                                {authenticatedLabel}
+                                <ArrowRight class="size-4" />
+                            </Link>
+                            <a href="#fitur" class={secondaryLink}>Lihat fitur</a>
+                        {:else}
+                            <Link href={toUrl(register())} class={primaryLink}>
+                                Daftar gratis
+                                <ArrowRight class="size-4" />
+                            </Link>
+                            <a href="#cara-kerja" class={secondaryLink}>
+                                Lihat cara kerja
                             </a>
-                        </span>
-                    </li>
-                    <li
-                        class="relative flex items-center gap-4 py-2 before:absolute before:top-0 before:bottom-1/2 before:left-[0.4rem] before:border-l before:border-[#e3e3e0] dark:before:border-[#3E3E3A]"
-                    >
-                        <span class="relative bg-white py-1 dark:bg-[#161615]">
-                            <span
-                                class="flex h-3.5 w-3.5 items-center justify-center rounded-full border border-[#e3e3e0] bg-[#FDFDFC] shadow-[0px_0px_1px_0px_rgba(0,0,0,0.03),0px_1px_2px_0px_rgba(0,0,0,0.06)] dark:border-[#3E3E3A] dark:bg-[#161615]"
-                            >
-                                <span
-                                    class="h-1.5 w-1.5 rounded-full bg-[#dbdbd7] dark:bg-[#3E3E3A]"
-                                ></span>
-                            </span>
-                        </span>
-                        <span>
-                            Watch video tutorials at
-                            <a
-                                href="https://laracasts.com"
-                                target="_blank"
-                                class="ml-1 inline-flex items-center space-x-1 font-medium text-[#f53003] underline underline-offset-4 dark:text-[#FF4433]"
-                            >
-                                <span>Laracasts</span>
-                                <svg
-                                    width="10"
-                                    height="11"
-                                    viewBox="0 0 10 11"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="h-2.5 w-2.5"
-                                >
-                                    <path
-                                        d="M7.70833 6.95834V2.79167H3.54167M2.5 8L7.5 3.00001"
-                                        stroke="currentColor"
-                                        stroke-linecap="square"
-                                    />
-                                </svg>
-                            </a>
-                        </span>
-                    </li>
-                </ul>
-                <ul class="flex gap-3 text-sm leading-normal">
-                    <li>
-                        <a
-                            href="https://cloud.laravel.com"
-                            target="_blank"
-                            class="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white hover:border-black hover:bg-black dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white"
-                        >
-                            Deploy now
-                        </a>
-                    </li>
-                </ul>
-            </div>
-            <div
-                class="bg-[#fff2f2] dark:bg-[#1D0002] relative lg:-ml-px -mb-px lg:mb-0 rounded-t-lg lg:rounded-t-none lg:rounded-r-lg aspect-[335/364] lg:aspect-auto w-full lg:w-[438px] shrink-0 overflow-hidden"
-            >
-                <!-- Laravel Logo -->
-                <svg
-                    class="w-full text-[#F53003] dark:text-[#F61500] transition-all translate-y-0 opacity-100 max-w-none duration-750 starting:opacity-0 motion-safe:starting:translate-y-6"
-                    viewBox="0 0 438 104"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <path
-                        d="M17.2036 -3H0V102.197H49.5189V86.7187H17.2036V-3Z"
-                        fill="currentColor"
-                    />
-                    <path
-                        d="M110.256 41.6337C108.061 38.1275 104.945 35.3731 100.905 33.3681C96.8667 31.3647 92.8016 30.3618 88.7131 30.3618C83.4247 30.3618 78.5885 31.3389 74.201 33.2923C69.8111 35.2456 66.0474 37.928 62.9059 41.3333C59.7643 44.7401 57.3198 48.6726 55.5754 53.1293C53.8287 57.589 52.9572 62.274 52.9572 67.1813C52.9572 72.1925 53.8287 76.8995 55.5754 81.3069C57.3191 85.7173 59.7636 89.6241 62.9059 93.0293C66.0474 96.4361 69.8119 99.1155 74.201 101.069C78.5885 103.022 83.4247 103.999 88.7131 103.999C92.8016 103.999 96.8667 102.997 100.905 100.994C104.945 98.9911 108.061 96.2359 110.256 92.7282V102.195H126.563V32.1642H110.256V41.6337ZM108.76 75.7472C107.762 78.4531 106.366 80.8078 104.572 82.8112C102.776 84.8161 100.606 86.4183 98.0637 87.6206C95.5202 88.823 92.7004 89.4238 89.6103 89.4238C86.5178 89.4238 83.7252 88.823 81.2324 87.6206C78.7388 86.4183 76.5949 84.8161 74.7998 82.8112C73.004 80.8078 71.6319 78.4531 70.6856 75.7472C69.7356 73.0421 69.2644 70.1868 69.2644 67.1821C69.2644 64.1758 69.7356 61.3205 70.6856 58.6154C71.6319 55.9102 73.004 53.5571 74.7998 51.5522C76.5949 49.5495 78.738 47.9451 81.2324 46.7427C83.7252 45.5404 86.5178 44.9396 89.6103 44.9396C92.7012 44.9396 95.5202 45.5404 98.0637 46.7427C100.606 47.9451 102.776 49.5487 104.572 51.5522C106.367 53.5571 107.762 55.9102 108.76 58.6154C109.756 61.3205 110.256 64.1758 110.256 67.1821C110.256 70.1868 109.756 73.0421 108.76 75.7472Z"
-                        fill="currentColor"
-                    />
-                    <path
-                        d="M242.805 41.6337C240.611 38.1275 237.494 35.3731 233.455 33.3681C229.416 31.3647 225.351 30.3618 221.262 30.3618C215.974 30.3618 211.138 31.3389 206.75 33.2923C202.36 35.2456 198.597 37.928 195.455 41.3333C192.314 44.7401 189.869 48.6726 188.125 53.1293C186.378 57.589 185.507 62.274 185.507 67.1813C185.507 72.1925 186.378 76.8995 188.125 81.3069C189.868 85.7173 192.313 89.6241 195.455 93.0293C198.597 96.4361 202.361 99.1155 206.75 101.069C211.138 103.022 215.974 103.999 221.262 103.999C225.351 103.999 229.416 102.997 233.455 100.994C237.494 98.9911 240.611 96.2359 242.805 92.7282V102.195H259.112V32.1642H242.805V41.6337ZM241.31 75.7472C240.312 78.4531 238.916 80.8078 237.122 82.8112C235.326 84.8161 233.156 86.4183 230.614 87.6206C228.07 88.823 225.251 89.4238 222.16 89.4238C219.068 89.4238 216.275 88.823 213.782 87.6206C211.289 86.4183 209.145 84.8161 207.35 82.8112C205.554 80.8078 204.182 78.4531 203.236 75.7472C202.286 73.0421 201.814 70.1868 201.814 67.1821C201.814 64.1758 202.286 61.3205 203.236 58.6154C204.182 55.9102 205.554 53.5571 207.35 51.5522C209.145 49.5495 211.288 47.9451 213.782 46.7427C216.275 45.5404 219.068 44.9396 222.16 44.9396C225.251 44.9396 228.07 45.5404 230.614 46.7427C233.156 47.9451 235.326 49.5487 237.122 51.5522C238.917 53.5571 240.312 55.9102 241.31 58.6154C242.306 61.3205 242.806 64.1758 242.806 67.1821C242.805 70.1868 242.305 73.0421 241.31 75.7472Z"
-                        fill="currentColor"
-                    />
-                    <path
-                        d="M438 -3H421.694V102.197H438V-3Z"
-                        fill="currentColor"
-                    />
-                    <path
-                        d="M139.43 102.197H155.735V48.2834H183.712V32.1665H139.43V102.197Z"
-                        fill="currentColor"
-                    />
-                    <path
-                        d="M324.49 32.1665L303.995 85.794L283.498 32.1665H266.983L293.748 102.197H314.242L341.006 32.1665H324.49Z"
-                        fill="currentColor"
-                    />
-                    <path
-                        d="M376.571 30.3656C356.603 30.3656 340.797 46.8497 340.797 67.1828C340.797 89.6597 356.094 104 378.661 104C391.29 104 399.354 99.1488 409.206 88.5848L398.189 80.0226C398.183 80.031 389.874 90.9895 377.468 90.9895C363.048 90.9895 356.977 79.3111 356.977 73.269H411.075C413.917 50.1328 398.775 30.3656 376.571 30.3656ZM357.02 61.0967C357.145 59.7487 359.023 43.3761 376.442 43.3761C393.861 43.3761 395.978 59.7464 396.099 61.0967H357.02Z"
-                        fill="currentColor"
-                    />
-                </svg>
+                        {/if}
+                    </div>
+                </div>
 
-                <!-- 13 -->
-                <svg
-                    class="w-[438px] max-w-none relative -mt-[6.6rem] -ml-8 lg:ml-0 [--stroke-color:#1B1B18] dark:[--stroke-color:#FF750F]"
-                    viewBox="0 0 440 392"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <g
-                        class="mix-blend-darken dark:mix-blend-normal transition-all delay-300 opacity-100 duration-750 starting:opacity-0 text-[#1B1B18] dark:text-black"
-                    >
-                        <mask
-                            id="path-1-mask"
-                            maskUnits="userSpaceOnUse"
-                            x="-0.328613"
-                            y="103"
-                            width="338"
-                            height="299"
-                            fill="black"
-                        >
-                            <rect
-                                fill="white"
-                                x="-0.328613"
-                                y="103"
-                                width="338"
-                                height="299"
-                            />
-                            <path
-                                d="M234.936 400.8C204.136 400.8 178.936 392.4 159.336 375.6C140.136 358.8 130.536 337 130.536 310.2H200.736C200.736 318.2 203.736 324.8 209.736 330C215.736 335.2 223.736 337.8 233.736 337.8C243.336 337.8 251.136 335 257.136 329.4C263.536 323.8 266.736 316.6 266.736 307.8C266.736 299.8 263.936 293.2 258.336 288C252.736 282.8 245.536 280.2 236.736 280.2H199.536V218.4H236.736C243.536 218.4 249.336 216 254.136 211.2C258.936 206.4 261.336 200.4 261.336 193.2C261.336 184.8 258.736 178.2 253.536 173.4C248.336 168.6 241.736 166.2 233.736 166.2C226.536 166.2 220.336 168.4 215.136 172.8C210.336 177.2 207.936 182.8 207.936 189.6H141.336C141.336 164.8 150.136 144.6 167.736 129C185.336 113 207.936 105 235.536 105C263.136 105 285.536 112.2 302.736 126.6C320.336 141 329.136 160 329.136 183.6C329.136 200.8 324.536 214.8 315.336 225.6C306.136 236 294.336 243.2 279.936 247.2C297.136 252 310.736 260.2 320.736 271.8C331.136 283.4 336.336 298 336.336 315.6C336.336 340.4 326.936 360.8 308.136 376.8C289.336 392.8 264.936 400.8 234.936 400.8Z"
-                            />
-                            <path
-                                d="M26.8714 167.6H1.67139V105.2H94.6714V400.2H26.8714V167.6Z"
-                            />
-                        </mask>
-                        <path
-                            d="M234.936 400.8C204.136 400.8 178.936 392.4 159.336 375.6C140.136 358.8 130.536 337 130.536 310.2H200.736C200.736 318.2 203.736 324.8 209.736 330C215.736 335.2 223.736 337.8 233.736 337.8C243.336 337.8 251.136 335 257.136 329.4C263.536 323.8 266.736 316.6 266.736 307.8C266.736 299.8 263.936 293.2 258.336 288C252.736 282.8 245.536 280.2 236.736 280.2H199.536V218.4H236.736C243.536 218.4 249.336 216 254.136 211.2C258.936 206.4 261.336 200.4 261.336 193.2C261.336 184.8 258.736 178.2 253.536 173.4C248.336 168.6 241.736 166.2 233.736 166.2C226.536 166.2 220.336 168.4 215.136 172.8C210.336 177.2 207.936 182.8 207.936 189.6H141.336C141.336 164.8 150.136 144.6 167.736 129C185.336 113 207.936 105 235.536 105C263.136 105 285.536 112.2 302.736 126.6C320.336 141 329.136 160 329.136 183.6C329.136 200.8 324.536 214.8 315.336 225.6C306.136 236 294.336 243.2 279.936 247.2C297.136 252 310.736 260.2 320.736 271.8C331.136 283.4 336.336 298 336.336 315.6C336.336 340.4 326.936 360.8 308.136 376.8C289.336 392.8 264.936 400.8 234.936 400.8Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M26.8714 167.6H1.67139V105.2H94.6714V400.2H26.8714V167.6Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M234.936 400.8C204.136 400.8 178.936 392.4 159.336 375.6C140.136 358.8 130.536 337 130.536 310.2H200.736C200.736 318.2 203.736 324.8 209.736 330C215.736 335.2 223.736 337.8 233.736 337.8C243.336 337.8 251.136 335 257.136 329.4C263.536 323.8 266.736 316.6 266.736 307.8C266.736 299.8 263.936 293.2 258.336 288C252.736 282.8 245.536 280.2 236.736 280.2H199.536V218.4H236.736C243.536 218.4 249.336 216 254.136 211.2C258.936 206.4 261.336 200.4 261.336 193.2C261.336 184.8 258.736 178.2 253.536 173.4C248.336 168.6 241.736 166.2 233.736 166.2C226.536 166.2 220.336 168.4 215.136 172.8C210.336 177.2 207.936 182.8 207.936 189.6H141.336C141.336 164.8 150.136 144.6 167.736 129C185.336 113 207.936 105 235.536 105C263.136 105 285.536 112.2 302.736 126.6C320.336 141 329.136 160 329.136 183.6C329.136 200.8 324.536 214.8 315.336 225.6C306.136 236 294.336 243.2 279.936 247.2C297.136 252 310.736 260.2 320.736 271.8C331.136 283.4 336.336 298 336.336 315.6C336.336 340.4 326.936 360.8 308.136 376.8C289.336 392.8 264.936 400.8 234.936 400.8Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-1-mask)"
-                        />
-                        <path
-                            d="M26.8714 167.6H1.67139V105.2H94.6714V400.2H26.8714V167.6Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-1-mask)"
-                        />
-                    </g>
-
-                    <g
-                        class="transition-all delay-400 opacity-100 duration-750 starting:opacity-0 motion-safe:starting:-translate-x-[26px] text-[#F3BEC7] dark:text-[#4B0600]"
-                    >
-                        <mask
-                            id="path-2-mask"
-                            maskUnits="userSpaceOnUse"
-                            x="25.3357"
-                            y="103"
-                            width="338"
-                            height="299"
-                            fill="black"
-                        >
-                            <rect
-                                fill="white"
-                                x="25.3357"
-                                y="103"
-                                width="338"
-                                height="299"
-                            />
-                            <path
-                                d="M260.6 400.8C229.8 400.8 204.6 392.4 185 375.6C165.8 358.8 156.2 337 156.2 310.2H226.4C226.4 318.2 229.4 324.8 235.4 330C241.4 335.2 249.4 337.8 259.4 337.8C269 337.8 276.8 335 282.8 329.4C289.2 323.8 292.4 316.6 292.4 307.8C292.4 299.8 289.6 293.2 284 288C278.4 282.8 271.2 280.2 262.4 280.2H225.2V218.4H262.4C269.2 218.4 275 216 279.8 211.2C284.6 206.4 287 200.4 287 193.2C287 184.8 284.4 178.2 279.2 173.4C274 168.6 267.4 166.2 259.4 166.2C252.2 166.2 246 168.4 240.8 172.8C236 177.2 233.6 182.8 233.6 189.6H167C167 164.8 175.8 144.6 193.4 129C211 113 233.6 105 261.2 105C288.8 105 311.2 112.2 328.4 126.6C346 141 354.8 160 354.8 183.6C354.8 200.8 350.2 214.8 341 225.6C331.8 236 320 243.2 305.6 247.2C322.8 252 336.4 260.2 346.4 271.8C356.8 283.4 362 298 362 315.6C362 340.4 352.6 360.8 333.8 376.8C315 392.8 290.6 400.8 260.6 400.8Z"
-                            />
-                            <path
-                                d="M52.5357 167.6H27.3357V105.2H120.336V400.2H52.5357V167.6Z"
-                            />
-                        </mask>
-                        <path
-                            d="M260.6 400.8C229.8 400.8 204.6 392.4 185 375.6C165.8 358.8 156.2 337 156.2 310.2H226.4C226.4 318.2 229.4 324.8 235.4 330C241.4 335.2 249.4 337.8 259.4 337.8C269 337.8 276.8 335 282.8 329.4C289.2 323.8 292.4 316.6 292.4 307.8C292.4 299.8 289.6 293.2 284 288C278.4 282.8 271.2 280.2 262.4 280.2H225.2V218.4H262.4C269.2 218.4 275 216 279.8 211.2C284.6 206.4 287 200.4 287 193.2C287 184.8 284.4 178.2 279.2 173.4C274 168.6 267.4 166.2 259.4 166.2C252.2 166.2 246 168.4 240.8 172.8C236 177.2 233.6 182.8 233.6 189.6H167C167 164.8 175.8 144.6 193.4 129C211 113 233.6 105 261.2 105C288.8 105 311.2 112.2 328.4 126.6C346 141 354.8 160 354.8 183.6C354.8 200.8 350.2 214.8 341 225.6C331.8 236 320 243.2 305.6 247.2C322.8 252 336.4 260.2 346.4 271.8C356.8 283.4 362 298 362 315.6C362 340.4 352.6 360.8 333.8 376.8C315 392.8 290.6 400.8 260.6 400.8Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M52.5357 167.6H27.3357V105.2H120.336V400.2H52.5357V167.6Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M260.6 400.8C229.8 400.8 204.6 392.4 185 375.6C165.8 358.8 156.2 337 156.2 310.2H226.4C226.4 318.2 229.4 324.8 235.4 330C241.4 335.2 249.4 337.8 259.4 337.8C269 337.8 276.8 335 282.8 329.4C289.2 323.8 292.4 316.6 292.4 307.8C292.4 299.8 289.6 293.2 284 288C278.4 282.8 271.2 280.2 262.4 280.2H225.2V218.4H262.4C269.2 218.4 275 216 279.8 211.2C284.6 206.4 287 200.4 287 193.2C287 184.8 284.4 178.2 279.2 173.4C274 168.6 267.4 166.2 259.4 166.2C252.2 166.2 246 168.4 240.8 172.8C236 177.2 233.6 182.8 233.6 189.6H167C167 164.8 175.8 144.6 193.4 129C211 113 233.6 105 261.2 105C288.8 105 311.2 112.2 328.4 126.6C346 141 354.8 160 354.8 183.6C354.8 200.8 350.2 214.8 341 225.6C331.8 236 320 243.2 305.6 247.2C322.8 252 336.4 260.2 346.4 271.8C356.8 283.4 362 298 362 315.6C362 340.4 352.6 360.8 333.8 376.8C315 392.8 290.6 400.8 260.6 400.8Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-2-mask)"
-                        />
-                        <path
-                            d="M52.5357 167.6H27.3357V105.2H120.336V400.2H52.5357V167.6Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-2-mask)"
-                        />
-                    </g>
-
-                    <g
-                        class="mix-blend-color dark:mix-blend-hard-light transition-all delay-400 opacity-100 duration-750 starting:opacity-0 motion-safe:starting:-translate-x-[51px] text-[#F8B803] dark:text-[#391800]"
-                    >
-                        <mask
-                            id="path-3-mask"
-                            maskUnits="userSpaceOnUse"
-                            x="51"
-                            y="103"
-                            width="338"
-                            height="299"
-                            fill="black"
-                        >
-                            <rect
-                                fill="white"
-                                x="51"
-                                y="103"
-                                width="338"
-                                height="299"
-                            />
-                            <path
-                                d="M286.264 400.8C255.464 400.8 230.264 392.4 210.664 375.6C191.464 358.8 181.864 337 181.864 310.2H252.064C252.064 318.2 255.064 324.8 261.064 330C267.064 335.2 275.064 337.8 285.064 337.8C294.664 337.8 302.464 335 308.464 329.4C314.864 323.8 318.064 316.6 318.064 307.8C318.064 299.8 315.264 293.2 309.664 288C304.064 282.8 296.864 280.2 288.064 280.2H250.864V218.4H288.064C294.864 218.4 300.664 216 305.464 211.2C310.264 206.4 312.664 200.4 312.664 193.2C312.664 184.8 310.064 178.2 304.864 173.4C299.664 168.6 293.064 166.2 285.064 166.2C277.864 166.2 271.664 168.4 266.464 172.8C261.664 177.2 259.264 182.8 259.264 189.6H192.664C192.664 164.8 201.464 144.6 219.064 129C236.664 113 259.264 105 286.864 105C314.464 105 336.864 112.2 354.064 126.6C371.664 141 380.464 160 380.464 183.6C380.464 200.8 375.864 214.8 366.664 225.6C357.464 236 345.664 243.2 331.264 247.2C348.464 252 362.064 260.2 372.064 271.8C382.464 283.4 387.664 298 387.664 315.6C387.664 340.4 378.264 360.8 359.464 376.8C340.664 392.8 316.264 400.8 286.264 400.8Z"
-                            />
-                            <path
-                                d="M78.2 167.6H53V105.2H146V400.2H78.2V167.6Z"
-                            />
-                        </mask>
-                        <path
-                            d="M286.264 400.8C255.464 400.8 230.264 392.4 210.664 375.6C191.464 358.8 181.864 337 181.864 310.2H252.064C252.064 318.2 255.064 324.8 261.064 330C267.064 335.2 275.064 337.8 285.064 337.8C294.664 337.8 302.464 335 308.464 329.4C314.864 323.8 318.064 316.6 318.064 307.8C318.064 299.8 315.264 293.2 309.664 288C304.064 282.8 296.864 280.2 288.064 280.2H250.864V218.4H288.064C294.864 218.4 300.664 216 305.464 211.2C310.264 206.4 312.664 200.4 312.664 193.2C312.664 184.8 310.064 178.2 304.864 173.4C299.664 168.6 293.064 166.2 285.064 166.2C277.864 166.2 271.664 168.4 266.464 172.8C261.664 177.2 259.264 182.8 259.264 189.6H192.664C192.664 164.8 201.464 144.6 219.064 129C236.664 113 259.264 105 286.864 105C314.464 105 336.864 112.2 354.064 126.6C371.664 141 380.464 160 380.464 183.6C380.464 200.8 375.864 214.8 366.664 225.6C357.464 236 345.664 243.2 331.264 247.2C348.464 252 362.064 260.2 372.064 271.8C382.464 283.4 387.664 298 387.664 315.6C387.664 340.4 378.264 360.8 359.464 376.8C340.664 392.8 316.264 400.8 286.264 400.8Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M78.2 167.6H53V105.2H146V400.2H78.2V167.6Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M286.264 400.8C255.464 400.8 230.264 392.4 210.664 375.6C191.464 358.8 181.864 337 181.864 310.2H252.064C252.064 318.2 255.064 324.8 261.064 330C267.064 335.2 275.064 337.8 285.064 337.8C294.664 337.8 302.464 335 308.464 329.4C314.864 323.8 318.064 316.6 318.064 307.8C318.064 299.8 315.264 293.2 309.664 288C304.064 282.8 296.864 280.2 288.064 280.2H250.864V218.4H288.064C294.864 218.4 300.664 216 305.464 211.2C310.264 206.4 312.664 200.4 312.664 193.2C312.664 184.8 310.064 178.2 304.864 173.4C299.664 168.6 293.064 166.2 285.064 166.2C277.864 166.2 271.664 168.4 266.464 172.8C261.664 177.2 259.264 182.8 259.264 189.6H192.664C192.664 164.8 201.464 144.6 219.064 129C236.664 113 259.264 105 286.864 105C314.464 105 336.864 112.2 354.064 126.6C371.664 141 380.464 160 380.464 183.6C380.464 200.8 375.864 214.8 366.664 225.6C357.464 236 345.664 243.2 331.264 247.2C348.464 252 362.064 260.2 372.064 271.8C382.464 283.4 387.664 298 387.664 315.6C387.664 340.4 378.264 360.8 359.464 376.8C340.664 392.8 316.264 400.8 286.264 400.8Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-3-mask)"
-                        />
-                        <path
-                            d="M78.2 167.6H53V105.2H146V400.2H78.2V167.6Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-3-mask)"
-                        />
-                    </g>
-
-                    <g
-                        class="mix-blend-multiply dark:mix-blend-normal transition-all delay-400 opacity-100 duration-750 starting:opacity-0 motion-safe:starting:-translate-x-[78px] text-[#F3BEC7] dark:text-[#733000]"
-                    >
-                        <mask
-                            id="path-4-mask"
-                            maskUnits="userSpaceOnUse"
-                            x="76.6643"
-                            y="103"
-                            width="338"
-                            height="299"
-                            fill="black"
-                        >
-                            <rect
-                                fill="white"
-                                x="76.6643"
-                                y="103"
-                                width="338"
-                                height="299"
-                            />
-                            <path
-                                d="M311.929 400.8C281.129 400.8 255.929 392.4 236.329 375.6C217.129 358.8 207.529 337 207.529 310.2H277.729C277.729 318.2 280.729 324.8 286.729 330C292.729 335.2 300.729 337.8 310.729 337.8C320.329 337.8 328.129 335 334.129 329.4C340.529 323.8 343.729 316.6 343.729 307.8C343.729 299.8 340.929 293.2 335.329 288C329.729 282.8 322.529 280.2 313.729 280.2H276.529V218.4H313.729C320.529 218.4 326.329 216 331.129 211.2C335.929 206.4 338.329 200.4 338.329 193.2C338.329 184.8 335.729 178.2 330.529 173.4C325.329 168.6 318.729 166.2 310.729 166.2C303.529 166.2 297.329 168.4 292.129 172.8C287.329 177.2 284.929 182.8 284.929 189.6H218.329C218.329 164.8 227.129 144.6 244.729 129C262.329 113 284.929 105 312.529 105C340.129 105 362.529 112.2 379.729 126.6C397.329 141 406.129 160 406.129 183.6C406.129 200.8 401.529 214.8 392.329 225.6C383.129 236 371.329 243.2 356.929 247.2C374.129 252 387.729 260.2 397.729 271.8C408.129 283.4 413.329 298 413.329 315.6C413.329 340.4 403.929 360.8 385.129 376.8C366.329 392.8 341.929 400.8 311.929 400.8Z"
-                            />
-                            <path
-                                d="M103.864 167.6H78.6643V105.2H171.664V400.2H103.864V167.6Z"
-                            />
-                        </mask>
-                        <path
-                            d="M311.929 400.8C281.129 400.8 255.929 392.4 236.329 375.6C217.129 358.8 207.529 337 207.529 310.2H277.729C277.729 318.2 280.729 324.8 286.729 330C292.729 335.2 300.729 337.8 310.729 337.8C320.329 337.8 328.129 335 334.129 329.4C340.529 323.8 343.729 316.6 343.729 307.8C343.729 299.8 340.929 293.2 335.329 288C329.729 282.8 322.529 280.2 313.729 280.2H276.529V218.4H313.729C320.529 218.4 326.329 216 331.129 211.2C335.929 206.4 338.329 200.4 338.329 193.2C338.329 184.8 335.729 178.2 330.529 173.4C325.329 168.6 318.729 166.2 310.729 166.2C303.529 166.2 297.329 168.4 292.129 172.8C287.329 177.2 284.929 182.8 284.929 189.6H218.329C218.329 164.8 227.129 144.6 244.729 129C262.329 113 284.929 105 312.529 105C340.129 105 362.529 112.2 379.729 126.6C397.329 141 406.129 160 406.129 183.6C406.129 200.8 401.529 214.8 392.329 225.6C383.129 236 371.329 243.2 356.929 247.2C374.129 252 387.729 260.2 397.729 271.8C408.129 283.4 413.329 298 413.329 315.6C413.329 340.4 403.929 360.8 385.129 376.8C366.329 392.8 341.929 400.8 311.929 400.8Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M103.864 167.6H78.6643V105.2H171.664V400.2H103.864V167.6Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M311.929 400.8C281.129 400.8 255.929 392.4 236.329 375.6C217.129 358.8 207.529 337 207.529 310.2H277.729C277.729 318.2 280.729 324.8 286.729 330C292.729 335.2 300.729 337.8 310.729 337.8C320.329 337.8 328.129 335 334.129 329.4C340.529 323.8 343.729 316.6 343.729 307.8C343.729 299.8 340.929 293.2 335.329 288C329.729 282.8 322.529 280.2 313.729 280.2H276.529V218.4H313.729C320.529 218.4 326.329 216 331.129 211.2C335.929 206.4 338.329 200.4 338.329 193.2C338.329 184.8 335.729 178.2 330.529 173.4C325.329 168.6 318.729 166.2 310.729 166.2C303.529 166.2 297.329 168.4 292.129 172.8C287.329 177.2 284.929 182.8 284.929 189.6H218.329C218.329 164.8 227.129 144.6 244.729 129C262.329 113 284.929 105 312.529 105C340.129 105 362.529 112.2 379.729 126.6C397.329 141 406.129 160 406.129 183.6C406.129 200.8 401.529 214.8 392.329 225.6C383.129 236 371.329 243.2 356.929 247.2C374.129 252 387.729 260.2 397.729 271.8C408.129 283.4 413.329 298 413.329 315.6C413.329 340.4 403.929 360.8 385.129 376.8C366.329 392.8 341.929 400.8 311.929 400.8Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-4-mask)"
-                        />
-                        <path
-                            d="M103.864 167.6H78.6643V105.2H171.664V400.2H103.864V167.6Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-4-mask)"
-                        />
-                    </g>
-
-                    <g
-                        class="mix-blend-hard-light transition-all delay-400 opacity-100 duration-750 starting:opacity-0 motion-safe:starting:-translate-x-[102px] text-[#F3BEC7] dark:text-[#4B0600]"
-                    >
-                        <mask
-                            id="path-5-mask"
-                            maskUnits="userSpaceOnUse"
-                            x="102.329"
-                            y="103"
-                            width="338"
-                            height="299"
-                            fill="black"
-                        >
-                            <rect
-                                fill="white"
-                                x="102.329"
-                                y="103"
-                                width="338"
-                                height="299"
-                            />
-                            <path
-                                d="M337.593 400.8C306.793 400.8 281.593 392.4 261.993 375.6C242.793 358.8 233.193 337 233.193 310.2H303.393C303.393 318.2 306.393 324.8 312.393 330C318.393 335.2 326.393 337.8 336.393 337.8C345.993 337.8 353.793 335 359.793 329.4C366.193 323.8 369.393 316.6 369.393 307.8C369.393 299.8 366.593 293.2 360.993 288C355.393 282.8 348.193 280.2 339.393 280.2H302.193V218.4H339.393C346.193 218.4 351.993 216 356.793 211.2C361.593 206.4 363.993 200.4 363.993 193.2C363.993 184.8 361.393 178.2 356.193 173.4C350.993 168.6 344.393 166.2 336.393 166.2C329.193 166.2 322.993 168.4 317.793 172.8C312.993 177.2 310.593 182.8 310.593 189.6H243.993C243.993 164.8 252.793 144.6 270.393 129C287.993 113 310.593 105 338.193 105C365.793 105 388.193 112.2 405.393 126.6C422.993 141 431.793 160 431.793 183.6C431.793 200.8 427.193 214.8 417.993 225.6C408.793 236 396.993 243.2 382.593 247.2C399.793 252 413.393 260.2 423.393 271.8C433.793 283.4 438.993 298 438.993 315.6C438.993 340.4 429.593 360.8 410.793 376.8C391.993 392.8 367.593 400.8 337.593 400.8Z"
-                            />
-                            <path
-                                d="M129.529 167.6H104.329V105.2H197.329V400.2H129.529V167.6Z"
-                            />
-                        </mask>
-                        <path
-                            d="M337.593 400.8C306.793 400.8 281.593 392.4 261.993 375.6C242.793 358.8 233.193 337 233.193 310.2H303.393C303.393 318.2 306.393 324.8 312.393 330C318.393 335.2 326.393 337.8 336.393 337.8C345.993 337.8 353.793 335 359.793 329.4C366.193 323.8 369.393 316.6 369.393 307.8C369.393 299.8 366.593 293.2 360.993 288C355.393 282.8 348.193 280.2 339.393 280.2H302.193V218.4H339.393C346.193 218.4 351.993 216 356.793 211.2C361.593 206.4 363.993 200.4 363.993 193.2C363.993 184.8 361.393 178.2 356.193 173.4C350.993 168.6 344.393 166.2 336.393 166.2C329.193 166.2 322.993 168.4 317.793 172.8C312.993 177.2 310.593 182.8 310.593 189.6H243.993C243.993 164.8 252.793 144.6 270.393 129C287.993 113 310.593 105 338.193 105C365.793 105 388.193 112.2 405.393 126.6C422.993 141 431.793 160 431.793 183.6C431.793 200.8 427.193 214.8 417.993 225.6C408.793 236 396.993 243.2 382.593 247.2C399.793 252 413.393 260.2 423.393 271.8C433.793 283.4 438.993 298 438.993 315.6C438.993 340.4 429.593 360.8 410.793 376.8C391.993 392.8 367.593 400.8 337.593 400.8Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M129.529 167.6H104.329V105.2H197.329V400.2H129.529V167.6Z"
-                            fill="currentColor"
-                        />
-                        <path
-                            d="M337.593 400.8C306.793 400.8 281.593 392.4 261.993 375.6C242.793 358.8 233.193 337 233.193 310.2H303.393C303.393 318.2 306.393 324.8 312.393 330C318.393 335.2 326.393 337.8 336.393 337.8C345.993 337.8 353.793 335 359.793 329.4C366.193 323.8 369.393 316.6 369.393 307.8C369.393 299.8 366.593 293.2 360.993 288C355.393 282.8 348.193 280.2 339.393 280.2H302.193V218.4H339.393C346.193 218.4 351.993 216 356.793 211.2C361.593 206.4 363.993 200.4 363.993 193.2C363.993 184.8 361.393 178.2 356.193 173.4C350.993 168.6 344.393 166.2 336.393 166.2C329.193 166.2 322.993 168.4 317.793 172.8C312.993 177.2 310.593 182.8 310.593 189.6H243.993C243.993 164.8 252.793 144.6 270.393 129C287.993 113 310.593 105 338.193 105C365.793 105 388.193 112.2 405.393 126.6C422.993 141 431.793 160 431.793 183.6C431.793 200.8 427.193 214.8 417.993 225.6C408.793 236 396.993 243.2 382.593 247.2C399.793 252 413.393 260.2 423.393 271.8C433.793 283.4 438.993 298 438.993 315.6C438.993 340.4 429.593 360.8 410.793 376.8C391.993 392.8 367.593 400.8 337.593 400.8Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-5-mask)"
-                        />
-                        <path
-                            d="M129.529 167.6H104.329V105.2H197.329V400.2H129.529V167.6Z"
-                            stroke="var(--stroke-color)"
-                            stroke-width="2.4"
-                            mask="url(#path-5-mask)"
-                        />
-                    </g>
-                </svg>
                 <div
-                    class="absolute inset-0 rounded-t-lg lg:rounded-t-none lg:rounded-r-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]"
-                ></div>
+                    class="min-w-0 motion-safe:animate-[landing-in_500ms_ease-out_both]"
+                >
+                    <ProductPreview />
+                </div>
             </div>
-        </main>
-    </div>
-    <div class="hidden h-14.5 lg:block"></div>
+        </section>
+
+        <section class="border-y border-border" aria-label="Kapabilitas utama">
+            <div
+                class="mx-auto grid max-w-7xl grid-cols-2 px-4 sm:px-6 lg:grid-cols-4 lg:px-8"
+            >
+                {#each capabilities as capability, index (capability.label)}
+                    <div
+                        class="flex min-w-0 flex-col items-center justify-center gap-3 px-3 py-7 text-center sm:flex-row sm:text-left lg:py-8 {index > 0 ? 'lg:border-l lg:border-border' : ''}"
+                    >
+                        <capability.icon
+                            class="size-5 shrink-0 text-[#021d4f] dark:text-[#9dbcf0]"
+                        />
+                        <span class="text-sm font-semibold sm:text-base">
+                            {capability.label}
+                        </span>
+                    </div>
+                {/each}
+            </div>
+        </section>
+
+        <section
+            id="fitur"
+            class="scroll-mt-24 py-20 sm:py-24 lg:py-32"
+        >
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="max-w-4xl">
+                    <h2
+                        class="text-3xl leading-tight font-bold tracking-[-0.035em] text-balance sm:text-4xl lg:text-5xl"
+                    >
+                        Pekerjaan akuntansi yang rumit, dibuat lebih terarah.
+                    </h2>
+                </div>
+
+                <div
+                    class="mt-12 grid border-t border-border md:grid-cols-3 md:divide-x md:divide-border"
+                >
+                    {#each featureGroups as feature (feature.title)}
+                        <article class="border-b border-border py-8 md:border-b-0 md:px-8 md:first:pl-0 md:last:pr-0">
+                            <feature.icon
+                                class="size-6 text-[#021d4f] dark:text-[#9dbcf0]"
+                            />
+                            <h3 class="mt-6 text-xl font-semibold tracking-tight">
+                                {feature.title}
+                            </h3>
+                            <p class="mt-3 leading-7 text-muted-foreground">
+                                {feature.description}
+                            </p>
+                        </article>
+                    {/each}
+                </div>
+            </div>
+        </section>
+
+        <section
+            id="cara-kerja"
+            class="scroll-mt-24 border-y border-border bg-muted/35 py-20 sm:py-24"
+        >
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <h2
+                    class="max-w-4xl text-3xl leading-tight font-bold tracking-[-0.035em] text-balance sm:text-4xl lg:text-5xl"
+                >
+                    Dari catat hingga laporan, tetap dalam satu alur.
+                </h2>
+
+                <ol
+                    class="relative mt-14 grid gap-10 before:absolute before:top-5 before:right-0 before:left-0 before:hidden before:h-px before:bg-[#021d4f]/35 md:grid-cols-3 md:gap-8 md:before:block dark:before:bg-[#9dbcf0]/35"
+                >
+                    {#each workflowSteps as step, index (step.title)}
+                        <li class="relative min-w-0">
+                            <span
+                                class="relative z-10 flex size-10 items-center justify-center rounded-full bg-[#021d4f] text-sm font-bold text-white ring-8 ring-muted/90"
+                            >
+                                {index + 1}
+                            </span>
+                            <h3 class="mt-6 text-xl font-semibold tracking-tight">
+                                {step.title}
+                            </h3>
+                            <p class="mt-2 max-w-sm leading-7 text-muted-foreground">
+                                {step.description}
+                            </p>
+                        </li>
+                    {/each}
+                </ol>
+            </div>
+        </section>
+
+        <section
+            id="laporan"
+            class="scroll-mt-24 py-20 sm:py-24 lg:py-32"
+        >
+            <div
+                class="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-8"
+            >
+                <div>
+                    <FileSearch
+                        class="size-7 text-[#021d4f] dark:text-[#9dbcf0]"
+                    />
+                    <h2
+                        class="mt-6 text-3xl leading-tight font-bold tracking-[-0.035em] text-balance sm:text-4xl lg:text-5xl"
+                    >
+                        Dari jurnal harian ke laporan yang siap diperiksa.
+                    </h2>
+                    <p class="mt-5 text-lg leading-8 text-muted-foreground">
+                        Setiap transaksi yang sudah disetujui tersusun menjadi
+                        laporan periode, sehingga posisi dan kinerja keuangan
+                        lebih mudah dipahami dan ditelusuri.
+                    </p>
+                </div>
+                <div class="min-w-0">
+                    <ReportPreview />
+                </div>
+            </div>
+        </section>
+
+        <section class="border-y border-border py-20 sm:py-24">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <h2
+                    class="text-3xl leading-tight font-bold tracking-[-0.035em] sm:text-4xl"
+                >
+                    Cocok untuk bisnis produk maupun jasa.
+                </h2>
+                <div class="mt-10 grid border-t border-border md:grid-cols-2 md:divide-x md:divide-border">
+                    <article class="border-b border-border py-8 md:border-b-0 md:pr-12">
+                        <ShoppingCart
+                            class="size-6 text-[#021d4f] dark:text-[#9dbcf0]"
+                        />
+                        <h3 class="mt-5 text-2xl font-semibold tracking-tight">
+                            Perusahaan produk
+                        </h3>
+                        <p class="mt-3 leading-7 text-muted-foreground">
+                            Kelola penjualan, pembelian, piutang, utang, dan
+                            struktur akun secara teratur dalam satu sistem.
+                        </p>
+                    </article>
+                    <article class="py-8 md:pl-12">
+                        <Truck
+                            class="size-6 text-[#021d4f] dark:text-[#9dbcf0]"
+                        />
+                        <h3 class="mt-5 text-2xl font-semibold tracking-tight">
+                            Perusahaan jasa
+                        </h3>
+                        <p class="mt-3 leading-7 text-muted-foreground">
+                            Catat pendapatan jasa, biaya operasional, piutang,
+                            dan hasil laporan per periode dengan rapi.
+                        </p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section
+            id="faq"
+            class="scroll-mt-24 py-20 sm:py-24 lg:py-32"
+        >
+            <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+                <h2
+                    class="text-3xl leading-tight font-bold tracking-[-0.035em] sm:text-4xl lg:text-5xl"
+                >
+                    Pertanyaan yang sering ditanyakan.
+                </h2>
+                <div class="mt-10 border-t border-border">
+                    {#each faqs as faq, index (faq.question)}
+                        <details class="group border-b border-border" open={index === 0}>
+                            <summary
+                                class="flex min-h-16 cursor-pointer list-none items-center justify-between gap-5 py-4 text-left font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#021d4f] focus-visible:ring-inset dark:focus-visible:ring-[#9dbcf0] [&::-webkit-details-marker]:hidden"
+                            >
+                                <span>{faq.question}</span>
+                                <ChevronDown
+                                    class="size-5 shrink-0 transition-transform group-open:rotate-180"
+                                />
+                            </summary>
+                            <p class="max-w-3xl pb-6 leading-7 text-muted-foreground">
+                                {faq.answer}
+                            </p>
+                        </details>
+                    {/each}
+                </div>
+            </div>
+        </section>
+
+        <section class="border-t border-border bg-muted/35 py-16 sm:py-20">
+            <div class="mx-auto max-w-4xl px-4 text-center sm:px-6">
+                <h2
+                    class="text-3xl leading-tight font-bold tracking-[-0.035em] text-balance sm:text-4xl"
+                >
+                    Mulai pembukuan yang lebih mudah ditelusuri.
+                </h2>
+                <div class="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                    {#if isAuthenticated}
+                        <Link href={toUrl(authenticatedUrl)} class={primaryLink}>
+                            {authenticatedLabel}
+                            <ArrowRight class="size-4" />
+                        </Link>
+                    {:else}
+                        <Link href={toUrl(register())} class={primaryLink}>
+                            Buat akun gratis
+                        </Link>
+                        <Link href={toUrl(login())} class={secondaryLink}>Masuk</Link>
+                    {/if}
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-[#021d4f] text-white">
+        <div
+            class="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.2fr_0.8fr] lg:px-8"
+        >
+            <div class="max-w-md">
+                <a
+                    href="/"
+                    class="inline-flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    aria-label={name}
+                >
+                    <span
+                        class="flex size-9 items-center justify-center overflow-hidden rounded-md bg-white"
+                    >
+                        <AppLogoIcon class="size-8 object-contain" />
+                    </span>
+                    <span class="text-lg font-bold">{name}</span>
+                </a>
+                <p class="mt-4 text-sm leading-6 text-white/70">
+                    Aplikasi pembukuan untuk membantu bisnis mencatat
+                    transaksi, mengatur akun, dan menyusun laporan keuangan
+                    dengan rapi.
+                </p>
+            </div>
+            <div class="md:justify-self-end">
+                <nav class="flex flex-wrap gap-x-6 gap-y-3 text-sm" aria-label="Navigasi footer">
+                    <a href="#fitur" class="hover:text-white/70">Fitur</a>
+                    <a href="#cara-kerja" class="hover:text-white/70">Cara kerja</a>
+                    <a href="#laporan" class="hover:text-white/70">Laporan</a>
+                    <a href="#faq" class="hover:text-white/70">FAQ</a>
+                </nav>
+                <p class="mt-6 text-sm text-white/60 md:text-right">
+                    © {currentYear} {name}
+                </p>
+            </div>
+        </div>
+    </footer>
 </div>
+
+<style>
+    @keyframes landing-in {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
