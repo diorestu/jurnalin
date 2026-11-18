@@ -7,6 +7,7 @@ use App\Actions\Opening\AccountingStartDate;
 use App\Enums\TradeDirection;
 use App\Enums\TradeKind;
 use App\Models\Team;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use stdClass;
@@ -60,6 +61,7 @@ class StoreTradeDocument
             }
 
             $lines = [];
+            $contact = TradePartners::resolve($team->id, $direction->value, $partner, $source->partner_id ?? $data['partner_id'] ?? null);
             $accountId = null;
             if ($kind->isCash()) {
                 $total = (int) ($data['amount'] ?? 0);
@@ -93,9 +95,10 @@ class StoreTradeDocument
                 'created_by' => $userId,
                 'request_id' => $data['request_id'],
                 'request_hash' => $hash,
-                'partner' => $partner,
+                'partner' => $source->partner ?? $contact->name,
+                'partner_id' => $contact->id,
                 'date' => $data['date'],
-                'due_date' => $kind === TradeKind::Invoice ? ($data['due_date'] ?? null) : null,
+                'due_date' => $kind === TradeKind::Invoice ? ($data['due_date'] ?? ($contact->terms === null ? null : Carbon::parse($data['date'])->addDays($contact->terms)->toDateString())) : null,
                 'reference' => $data['reference'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'notes_delta' => $data['notes_delta'] ?? null,
@@ -112,7 +115,8 @@ class StoreTradeDocument
             $applied = $direction === TradeDirection::Sales && $kind === TradeKind::Invoice && $orderId !== null
                 ? $this->applyAdvances((int) $orderId, $id, $total)
                 : 0;
-            $this->journal->record((object) ['id' => $id, ...$document], $source, $userId, $applied, $approvedBy ?? $userId);
+            $stockLines = app(StockPosting::class)->record($team->id, $id, $direction, $kind, $data['date']);
+            $this->journal->record((object) ['id' => $id, ...$document], $source, $userId, $applied, $approvedBy ?? $userId, $stockLines);
 
             app(RecordAccountingAudit::class)->record($team->id, $approvedBy ?? $userId, 'trade.created', 'trade_document', $id, null,
                 ['direction' => $direction->value, 'kind' => $kind->value, 'date' => $data['date'], 'partner' => $partner, 'total' => $total, 'source_id' => $source->id ?? null, 'lines' => $lines]);
@@ -158,7 +162,7 @@ class StoreTradeDocument
 
     /**
      * @param  list<array<string, mixed>>  $inputs
-     * @return array{list<array{name: string, quantity: int, unit_price: int, total: int, source_line_id: int|null}>, int}
+     * @return array{list<array{name: string, quantity: int, unit_price: int, total: int, source_line_id: int|null,item_id:int|null}>, int}
      */
     public function items(TradeKind $kind, ?stdClass $source, array $inputs): array
     {
@@ -172,6 +176,7 @@ class StoreTradeDocument
         $selected = [];
         foreach ($inputs as $input) {
             $sourceLineId = null;
+            $itemId = $input['item_id'] ?? null;
             $quantity = (int) $input['quantity'];
             if ($source === null) {
                 $name = (string) ($input['name'] ?? '');
@@ -188,6 +193,7 @@ class StoreTradeDocument
 
                 $selected[$sourceLineId] = true;
                 $name = (string) $line->name;
+                $itemId = $line->item_id;
                 $price = (int) $line->unit_price;
             }
 
@@ -203,6 +209,7 @@ class StoreTradeDocument
                 'unit_price' => $price,
                 'total' => $subtotal,
                 'source_line_id' => $sourceLineId,
+                'item_id' => $itemId,
             ];
         }
 

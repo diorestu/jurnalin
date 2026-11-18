@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\AgingController;
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\BankController;
+use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ChartOfAccountsController;
 use App\Http\Controllers\CoaExcelController;
 use App\Http\Controllers\DashboardController;
@@ -11,6 +14,7 @@ use App\Http\Controllers\JournalDraftController;
 use App\Http\Controllers\JournalReversalController;
 use App\Http\Controllers\JournalTemplateController;
 use App\Http\Controllers\OpeningBalancesController;
+use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\PeriodController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Teams\TeamInvitationController;
@@ -25,10 +29,21 @@ Route::prefix('{current_team}')
     ->middleware(['auth', EnsureTeamMembership::class])
     ->group(function () {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
+        Route::get('barang-jasa', [CatalogController::class, 'index'])->name('catalog.index');
+        Route::post('barang-jasa/{item?}', [CatalogController::class, 'save'])->whereNumber('item')->middleware(EnsureTeamMembership::class.':admin')->name('catalog.save');
+        Route::get('kas-bank', [BankController::class, 'index'])->name('bank.index');
+        Route::prefix('kas-bank')->middleware(EnsureTeamMembership::class.':admin')->group(function () {
+            Route::get('template', [BankController::class, 'template'])->name('bank.template');
+            Route::post('impor', [BankController::class, 'import'])->name('bank.import');
+            Route::post('mutasi/{statement}', [BankController::class, 'matchLine'])->whereNumber('statement')->name('bank.match');
+        });
+        Route::get('kontak', [PartnerController::class, 'index'])->name('partners.index');
+        Route::post('kontak/{contact?}', [PartnerController::class, 'save'])->whereNumber('contact')->middleware(EnsureTeamMembership::class.':admin')->name('partners.save');
+        Route::get('report/umur-piutang-utang', AgingController::class)->name('reports.aging');
         Route::prefix('impor-data')->group(function () {
             Route::inertia('/', 'Imports')->name('imports.index');
-            Route::get('{kind}/template', [DataImportController::class, 'template'])->whereIn('kind', ['coa', 'jurnal', 'saldo-awal'])->name('imports.template');
-            Route::post('{kind}/{step}', [DataImportController::class, 'upload'])->whereIn('kind', ['coa', 'jurnal', 'saldo-awal'])->whereIn('step', ['preview', 'confirm'])->name('imports.upload');
+            Route::get('{kind}/template', [DataImportController::class, 'template'])->whereIn('kind', ['coa', 'jurnal', 'saldo-awal', 'kontak'])->name('imports.template');
+            Route::post('{kind}/{step}', [DataImportController::class, 'upload'])->whereIn('kind', ['coa', 'jurnal', 'saldo-awal', 'kontak'])->whereIn('step', ['preview', 'confirm'])->name('imports.upload');
         });
         Route::inertia('report', 'Report')->name('reports.index');
         Route::get('report/keuangan', [ReportController::class, 'financial'])->name('reports.financial');

@@ -5,6 +5,7 @@ namespace App\Actions\Opening;
 use App\Actions\Accounting\PeriodLocks;
 use App\Actions\Accounting\RecordAccountingAudit;
 use App\Actions\Trade\PostTradeJournal;
+use App\Actions\Trade\TradePartners;
 use App\Enums\AccountType;
 use App\Enums\TradeDirection;
 use App\Models\JournalEntry;
@@ -130,6 +131,7 @@ class StoreOpeningBalances
                         'direction' => $direction->value, 'kind' => 'invoice',
                         'request_id' => (string) Str::uuid(), 'request_hash' => $hash,
                         'partner' => $invoice['partner'], 'reference' => $invoice['reference'],
+                        'partner_id' => TradePartners::resolve($team->id, $direction->value, $invoice['partner'])->id,
                         'date' => $invoice['invoice_date'], 'due_date' => $invoice['due_date'] ?? null,
                         'notes' => 'Saldo tagihan saat migrasi per '.$data['date'], 'total' => $invoice['amount'],
                         'created_at' => now(),
@@ -138,6 +140,13 @@ class StoreOpeningBalances
             }
             foreach ($stock as $item) {
                 DB::table('opening_inventory')->insert(['opening_balance_id' => $id, ...$item]);
+                $sku = strtoupper($item['sku']);
+                $product = DB::table('catalog_items')->where('team_id', $team->id)->where('sku', $sku)->first();
+                if ($product && (! $product->stock || DB::table('stock_movements')->where('item_id', $product->id)->exists())) {
+                    throw ValidationException::withMessages(['inventory' => "SKU $sku sudah memiliki mutasi atau merupakan jasa."]);
+                }
+                $productId = $product->id ?? DB::table('catalog_items')->insertGetId(['team_id' => $team->id, 'sku' => $sku, 'name' => $item['name'], 'unit' => 'unit', 'stock' => true, 'buy_price' => $item['unit_cost'], 'sell_price' => 0]);
+                DB::table('stock_movements')->insert(['item_id' => $productId, 'date' => $data['date'], 'reason' => 'Saldo awal', 'quantity' => $item['quantity'], 'value' => $item['total']]);
             }
 
             app(RecordAccountingAudit::class)->record($team->id, $userId, 'opening.posted', 'opening_balance', $id, null,

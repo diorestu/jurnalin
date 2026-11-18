@@ -44,6 +44,7 @@ it('previews the downloaded template and confirms it atomically', function (stri
         unlink($path);
     }
 })->with([
+    ['kontak', 'trade_partners', [['pelanggan', 'ABC', 'PT ABC', 30, 'info@example.test', 'Bali', '']]],
     ['coa', 'journal_accounts', [['QA-003', 'Akun contoh', 'asset', '1', '0']]],
     ['jurnal', 'journal_drafts', [['REF-A', '2026-01-01', 'Transfer', '1101', 100, 0], ['REF-A', '2026-01-01', 'Transfer', '1102', 0, 100]]],
     ['saldo-awal', 'opening_balances', [['2026-01-01', '1101', 100, 0], ['2026-01-01', '1102', 0, 100]]],

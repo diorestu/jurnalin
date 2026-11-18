@@ -7,7 +7,13 @@
     import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
     import ListTree from '@lucide/svelte/icons/list-tree';
     import type { Snippet } from 'svelte';
+    import {index as catalogIndex} from '@/routes/catalog';
+    import Package from '@lucide/svelte/icons/package';
     import AppLogo from '@/components/AppLogo.svelte';
+    import { index as bankIndex } from '@/routes/bank';
+    import Landmark from '@lucide/svelte/icons/landmark';
+    import { index as partnerIndex } from '@/routes/partners';
+    import Users from '@lucide/svelte/icons/users';
     import Upload from '@lucide/svelte/icons/upload';
     import { index as importsIndex } from '@/routes/imports';
     import NavFooter from '@/components/NavFooter.svelte';
@@ -51,6 +57,9 @@
 
         if (currentTeam) {
             items.push(
+                {title:'Barang & Jasa',href:catalogIndex(currentTeam.slug),icon:Package},
+                { title: 'Kas & Bank', href: bankIndex(currentTeam.slug), icon: Landmark },
+                { title: 'Pelanggan & Pemasok', href: partnerIndex(currentTeam.slug), icon: Users },
                 { title: 'Impor Data', href: importsIndex(currentTeam.slug), icon: Upload },
                 { title: 'Penjualan & Piutang', href: tradeIndex([currentTeam.slug, 'penjualan']), icon: ShoppingCart },
                 { title: 'Pembelian & Utang', href: tradeIndex([currentTeam.slug, 'pembelian']), icon: Truck },

@@ -19,9 +19,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DataImportController extends Controller
 {
-    private const SHEETS = ['coa' => 'COA', 'jurnal' => 'Jurnal', 'saldo-awal' => 'Saldo Awal'];
+    private const SHEETS = ['coa' => 'COA', 'kontak' => 'Kontak', 'jurnal' => 'Jurnal', 'saldo-awal' => 'Saldo Awal'];
 
     private const HEADERS = [
+        'kontak' => ['jenis', 'kode', 'nama', 'termin_hari', 'kontak', 'alamat', 'npwp'],
         'coa' => ['kode', 'nama', 'jenis', 'aktif', 'kas_bank'],
         'jurnal' => ['referensi', 'tanggal', 'keterangan', 'kode_akun', 'debit', 'kredit'],
         'saldo-awal' => ['tanggal', 'kode_akun', 'debit', 'kredit'],
@@ -47,6 +48,7 @@ class DataImportController extends Controller
             }
         }
         $book->createSheet()->setTitle('Petunjuk')->fromArray([[match ($kind) {
+            'kontak' => 'Jenis pelanggan atau pemasok. Kode unik per jenis dan perusahaan. Kode yang sudah ada dilewati. Termin opsional dalam hari (0–3650).',
             'coa' => 'Jenis: asset, liability, equity, revenue, expense. Aktif dan kas_bank: 1 atau 0. Kode lama dilewati.',
             'jurnal' => 'Ulangi referensi, tanggal YYYY-MM-DD dan keterangan pada setiap baris satu jurnal. Isi satu sisi per baris dalam rupiah. Setiap referensi harus seimbang.',
             default => 'Isi akun neraca dan satu sisi nominal per baris. Gunakan satu tanggal YYYY-MM-DD. Untuk saldo awal dengan rincian piutang, utang atau persediaan gunakan menu Saldo Awal.',
@@ -68,7 +70,7 @@ class DataImportController extends Controller
         $path = $request->file('file')->getRealPath();
         $headers = self::HEADERS[$kind];
         $rows = app(WorkbookRows::class)->read($path, self::SHEETS[$kind], $headers, match ($kind) {
-            'coa' => 5000, 'jurnal' => 1000, default => 50,
+            'coa', 'kontak' => 5000, 'jurnal' => 1000, default => 50,
         });
         $user = $request->user();
         $token = hash_hmac('sha256', implode('|', [$current_team->id, $user->id, $kind, hash_file('sha256', $path)]), (string) config('app.key'));
@@ -80,7 +82,29 @@ class DataImportController extends Controller
         DB::beginTransaction();
         try {
             Team::whereKey($current_team->id)->lockForUpdate()->firstOrFail();
-            if ($kind === 'coa') {
+            if ($kind === 'kontak') {
+                $added = 0;
+                $seen = [];
+                foreach ($rows as $n => [$type,$code,$name,$terms,$contact,$address,$npwp]) {
+                    $code = strtoupper($code);
+                    $validator = Validator::make(compact('type', 'code', 'name', 'terms', 'contact', 'address', 'npwp'), [
+                        'type' => 'required|in:pelanggan,pemasok', 'code' => 'required|string|max:40', 'name' => 'required|string|max:160',
+                        'terms' => 'nullable|integer|between:0,3650', 'contact' => 'nullable|string|max:255', 'address' => 'nullable|string|max:255', 'npwp' => 'nullable|string|max:32',
+                    ]);
+                    if ($validator->fails() || isset($seen[$type][$code])) {
+                        throw ValidationException::withMessages(['file' => "Baris $n: ".($validator->errors()->first() ?: 'Kode kontak berulang.')]);
+                    }
+                    $seen[$type][$code] = true;
+                    $key = ['team_id' => $current_team->id, 'direction' => $type === 'pelanggan' ? 'penjualan' : 'pembelian', 'code' => $code];
+                    if (! DB::table('trade_partners')->where($key)->exists()) {
+                        $added++;
+                        if (! $preview) {
+                            DB::table('trade_partners')->insert([...$key, ...compact('name', 'contact', 'address', 'npwp'), 'terms' => $terms === '' ? null : (int) $terms]);
+                        }
+                    }
+                }
+                $summary = "$added kontak baru, ".(count($rows) - $added).' kode lama dilewati.';
+            } elseif ($kind === 'coa') {
                 [$count, $skipped] = app(CoaExcelController::class)->applyRows($current_team, $user->id, $rows, $preview);
                 $summary = "$count akun baru, $skipped kode lama dilewati.";
             } else {

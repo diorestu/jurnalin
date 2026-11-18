@@ -28,6 +28,45 @@ function sourceTradeLines(int $documentId, int $quantity): array
     ]];
 }
 
+it('carries weighted shipment cost into partial invoices and restores original cost on return', function () {
+    $user = User::factory()->create();
+    $team = $user->currentTeam;
+    $this->actingAs($user)->post(route('catalog.save', ['current_team' => $team]), ['sku' => 'A', 'name' => 'Barang A', 'unit' => 'pcs', 'stock' => true, 'buy_price' => 100, 'sell_price' => 400])->assertRedirect()->assertSessionHasNoErrors();
+    $item = DB::table('catalog_items')->value('id');
+    $line = fn ($q, $price) => [['item_id' => $item, 'name' => 'Barang A', 'quantity' => $q, 'unit_price' => $price]];
+    foreach ([100, 200] as $price) {
+        saveTrade($this, $user, 'pembelian', ['kind' => 'invoice', 'partner' => 'Vendor', 'lines' => $line(2, $price)]);
+    }
+    $order = saveTrade($this, $user, 'penjualan', ['kind' => 'order', 'partner' => 'Pembeli', 'lines' => $line(4, 400)]);
+    $delivery = saveTrade($this, $user, 'penjualan', ['kind' => 'delivery', 'source_id' => $order, 'lines' => sourceTradeLines($order, 4)]);
+    $invoice = saveTrade($this, $user, 'penjualan', ['kind' => 'invoice', 'source_id' => $delivery, 'lines' => sourceTradeLines($delivery, 2)]);
+    expect((int) DB::table('stock_movements')->sum('quantity'))->toBe(0);
+    $journal = DB::table('trade_documents')->where('id', $invoice)->value('journal_entry_id');
+    $this->assertDatabaseHas('journal_entry_lines', ['journal_entry_id' => $journal, 'account_code' => '5101', 'side' => 'debit', 'amount' => 300]);
+    saveTrade($this, $user, 'penjualan', ['kind' => 'return', 'source_id' => $invoice, 'lines' => sourceTradeLines($invoice, 1)]);
+    expect((int) DB::table('stock_movements')->sum('quantity'))->toBe(1)
+        ->and((int) DB::table('stock_movements')->sum('value'))->toBe(150);
+    $this->post(route('trade.store', [$team, 'penjualan']), ['request_id' => (string) Str::uuid(), 'date' => '2026-11-08', 'kind' => 'invoice', 'partner' => 'Pembeli', 'lines' => $line(2, 400)])->assertSessionHasErrors('lines');
+    expect((int) DB::table('stock_movements')->sum('quantity'))->toBe(1);
+});
+
+it('reconciles historical aging after a later payment and keeps the invoice contact snapshot', function (string $direction) {
+    $user = User::factory()->create();
+    $team = $user->currentTeam;
+    $this->actingAs($user)->post(route('partners.save', ['current_team' => $team]), ['direction' => $direction, 'code' => 'ACME', 'name' => 'Acme', 'terms' => 10])->assertRedirect()->assertSessionHasNoErrors();
+    $id = DB::table('trade_partners')->where('team_id', $team->id)->value('id');
+    $invoice = saveTrade($this, $user, $direction, ['date' => '2026-10-01', 'kind' => 'invoice', 'partner' => 'Acme', 'partner_id' => $id, 'lines' => [['name' => 'Jasa', 'quantity' => 1, 'unit_price' => 150000]]]);
+    $this->assertDatabaseHas('trade_documents', ['id' => $invoice, 'partner_id' => $id, 'due_date' => '2026-10-11']);
+    $this->post(route('partners.save', [$team, $id]), ['code' => 'ACME', 'name' => 'Acme Baru'])->assertSessionHasNoErrors();
+    $cash = DB::table('journal_accounts')->where('team_id', $team->id)->where('code', '1101')->value('id');
+    saveTrade($this, $user, $direction, ['kind' => 'payment', 'source_id' => $invoice, 'date' => '2026-11-01', 'account_id' => $cash, 'amount' => 150000]);
+    $this->get(route('reports.aging', [$team, 'direction' => $direction, 'as_of' => '2026-10-31']))->assertInertia(fn (Assert $p) => $p->component('Aging')->where('net', '150000')->where('difference', '0')->where('rows.0.bucket', '1–30 hari')->where('rows.0.partner', 'Acme Baru'));
+    $this->get(route('reports.aging', [$team, 'direction' => $direction, 'as_of' => '2026-11-01']))->assertInertia(fn (Assert $p) => $p->where('net', '0')->has('rows', 0));
+    $this->assertDatabaseHas('trade_documents', ['id' => $invoice, 'partner' => 'Acme']);
+    $other = User::factory()->create();
+    $this->actingAs($other)->get(route('reports.aging', [$other->currentTeam, 'direction' => $direction, 'contact' => $id]))->assertNotFound();
+})->with(['penjualan', 'pembelian']);
+
 it('processes sales from quotation to delivery, applies an advance, settles an invoice and refunds a return', function () {
     $user = User::factory()->create();
     $cash = DB::table('journal_accounts')->where('team_id', $user->currentTeam->id)->where('code', '1101')->value('id');

@@ -32,6 +32,7 @@
     import { AccountSelect, NativeSelect } from '@/components/ui/select';
 
     type DraftLine = {
+        itemId?:number|null;
         key: number;
         sourceLineId: number | null;
         name: string;
@@ -47,6 +48,8 @@
         editingDraft,
         kinds,
         selectedKind,
+        catalog,
+        partners,
         source,
         cashAccounts,
         purchaseAccounts,
@@ -60,12 +63,14 @@
         title: string;
         canPost: boolean;
         editingDraft: { id: number; version: number; data: {
-            kind: string; partner?: string; date: string; due_date?: string | null; reference?: string | null; notes_delta?: string | null;
+            kind: string; partner?: string; partner_id?: number; date: string; due_date?: string | null; reference?: string | null; notes_delta?: string | null;
             amount?: number | null; account_id?: number | null;
-            lines?: { name?: string; quantity: number; unit_price?: number; source_line_id?: number | null }[];
+            lines?: { item_id?:number|null; name?: string; quantity: number; unit_price?: number; source_line_id?: number | null }[];
         } } | null;
         kinds: Kind[];
         selectedKind: string;
+        catalog:{id:number;sku:string;name:string;unit:string;buy_price:number;sell_price:number}[];
+        partners: { id:number; code:string; name:string; terms:number|null }[];
         source: Source | null;
         cashAccounts: Account[];
         purchaseAccounts: Account[];
@@ -87,9 +92,21 @@
     const initial = untrack(() => editingDraft?.data);
     const editingVersion = untrack(() => editingDraft?.version);
     let kind = $state(untrack(() => initial?.kind || selectedKind || kinds[0]?.value || ''));
-    let partner = $state(untrack(() => source?.partner ?? initial?.partner ?? ''));
+    const label = (p: {code:string;name:string}) => p.code + ' · ' + p.name;
+    let partner = $state(untrack(() => {
+        const found = partners.find(p => p.id === initial?.partner_id);
+        return source?.partner ?? (found ? label(found) : initial?.partner ?? '');
+    }));
+    const selectedPartner = $derived(partners.find(p => source ? p.id === source.partner_id : label(p) === partner));
     let transactionDate = $state(untrack(() => initial?.date ?? (source && source.date > date ? source.date : date)));
     let dueDate = $state(initial?.due_date ?? '');
+    const suggestedDue = $derived.by(() => {
+        if (!transactionDate || selectedPartner?.terms == null) return '';
+        const day = new Date(transactionDate + 'T00:00:00Z');
+        day.setUTCDate(day.getUTCDate() + selectedPartner.terms);
+        return day.toISOString().slice(0,10);
+    });
+    let effectiveDue = $derived(dueDate || suggestedDue);
     let reference = $state(initial?.reference ?? '');
     let notesDelta = $state(initial?.notes_delta ?? '');
     let amount = $state<number | undefined>(initial?.amount ?? undefined);
@@ -100,7 +117,7 @@
     let lines = $state<DraftLine[]>(untrack(() => initial
         ? (initial.lines ?? []).map(line => {
             const original = source?.lines.find(item => item.id === line.source_line_id);
-            return { key: nextKey++, sourceLineId: line.source_line_id ?? null,
+            return { key: nextKey++, sourceLineId: line.source_line_id ?? null, itemId:line.item_id,
                 name: original?.name ?? line.name ?? '', quantity: line.quantity,
                 unitPrice: Number(original?.unit_price ?? line.unit_price ?? 0),
                 remaining: original ? Number(original.remaining) : null };
@@ -166,14 +183,15 @@
             draft_id: editingDraft?.id ?? null,
             version: editingVersion ?? null,
             source_id: source?.id ?? null,
-            partner,
+            partner: selectedPartner?.name ?? partner,
+            partner_id: selectedPartner?.id ?? null,
             date: transactionDate,
-            due_date: kind === 'invoice' ? dueDate || null : null,
+            due_date: kind === 'invoice' ? effectiveDue || null : null,
             reference: reference || null,
             notes_delta: notesDelta || null,
             request_id: requestId,
             lines: activeLines.map((line) => ({
-                name: line.name,
+                name: line.name,item_id:line.itemId??null,
                 quantity: line.quantity ?? 0,
                 unit_price: line.unitPrice ?? 0,
                 source_line_id: line.sourceLineId,
@@ -235,7 +253,8 @@
             </div>
             <div class="flex min-w-0 flex-col gap-1.5">
                 <Label for="trade-create-partner">{partnerLabel(direction)}</Label>
-                <Input id="trade-create-partner" bind:value={partner} readonly={source !== null} required maxlength={160}
+                <datalist id="trade-contacts">{#each partners as p (p.id)}<option value={label(p)}></option>{/each}</datalist>
+                <Input id="trade-create-partner" list="trade-contacts" bind:value={partner} readonly={source !== null} required placeholder="Cari kode atau nama"
                     aria-invalid={!!errors.partner} />
                 <InputError message={errors.partner} />
             </div>
@@ -248,7 +267,7 @@
             {#if kind === 'invoice'}
                 <div class="flex min-w-0 flex-col gap-1.5">
                     <Label for="trade-create-due">Jatuh tempo</Label>
-                    <DateRangePicker id="trade-create-due" bind:value={dueDate} min={transactionDate || '1900-01-01'}
+                    <DateRangePicker id="trade-create-due" bind:value={() => effectiveDue, value => dueDate = value} min={transactionDate || '1900-01-01'}
                         max="9999-12-31" disabled={processing} invalid={!!errors.due_date} clearable />
                     <InputError message={errors.due_date} />
                 </div>
@@ -317,6 +336,13 @@
                             <div class="grid grid-cols-2 items-start gap-3 md:grid-cols-[minmax(0,2fr)_minmax(6rem,0.8fr)_minmax(7rem,1fr)_minmax(0,1fr)_auto]">
                                 <div class="col-span-2 flex min-w-0 flex-col gap-1.5 md:col-span-1">
                                     <Label for={`trade-line-name-${line.key}`}>Barang atau jasa <span class="sr-only">{label}</span></Label>
+                                    {#if !source && catalog.length}
+                                        <NativeSelect aria-label="Pilih dari katalog" value={String(line.itemId??'')} onchange={e=>{
+                                            const item=catalog.find(i=>i.id===Number(e.currentTarget.value));
+                                            line.itemId=item?.id??null;
+                                            if(item){line.name=item.name;line.unitPrice=Number(direction==='penjualan'?item.sell_price:item.buy_price);}
+                                        }}><option value="">Rincian manual</option>{#each catalog as item}<option value={String(item.id)}>{item.sku} · {item.name} ({item.unit})</option>{/each}</NativeSelect>
+                                    {/if}
                                     <Input id={`trade-line-name-${line.key}`} bind:value={line.name} readonly={source !== null} required maxlength={160} />
                                 </div>
                                 <div class="flex min-w-0 flex-col gap-1.5">

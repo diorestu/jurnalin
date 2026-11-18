@@ -39,6 +39,7 @@ export type Detail = Summary & {
 };
 
 export type Source = {
+    partner_id?: number | null;
     id: number;
     number: string;
     partner: string;

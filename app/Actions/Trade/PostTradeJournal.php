@@ -16,7 +16,8 @@ use stdClass;
 
 class PostTradeJournal
 {
-    public function record(stdClass $document, ?stdClass $source, int $userId, int $applied, ?int $approvedBy = null): void
+    /** @param list<array{account:int,side:string,amount:int}> $adjustments */
+    public function record(stdClass $document, ?stdClass $source, int $userId, int $applied, ?int $approvedBy = null, array $adjustments = []): void
     {
         $direction = TradeDirection::from($document->direction);
         $kind = TradeKind::from($document->kind);
@@ -57,6 +58,22 @@ class PostTradeJournal
             array_splice($lines, 1, 0, [$this->line($account('advance'), 'debit', $applied)]);
         }
 
+        if ($adjustments) {
+            foreach ($adjustments as $a) {
+                $lines[] = $this->line($this->getAccount($teamId, $a['account']), $a['side'], $a['amount']);
+            }
+            $net = [];
+            foreach ($lines as $line) {
+                $id = $line['journal_account_id'];
+                $net[$id] = ($net[$id] ?? 0) + ($line['side'] === 'debit' ? $line['amount'] : -$line['amount']);
+            }
+            $lines = [];
+            foreach ($net as $id => $value) {
+                if ($value !== 0) {
+                    $lines[] = $this->line($this->getAccount($teamId, $id, false), $value > 0 ? 'debit' : 'credit', abs($value));
+                }
+            }
+        }
         $entry = JournalEntry::create([
             'team_id' => $teamId,
             'posted_by' => $userId,

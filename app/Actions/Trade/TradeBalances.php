@@ -18,7 +18,7 @@ class TradeBalances
      * @param  Collection<int, stdClass>  $documents
      * @return array<int, int>
      */
-    public function invoices(Collection $documents): array
+    public function invoices(Collection $documents, ?string $asOf = null): array
     {
         $invoices = $documents->where('kind', TradeKind::Invoice->value);
         if ($invoices->isEmpty()) {
@@ -27,6 +27,7 @@ class TradeBalances
 
         $ids = $invoices->pluck('id');
         $settlements = DB::table('trade_documents')->whereIn('source_id', $ids)
+            ->when($asOf !== null, fn ($q) => $q->where('date', '<=', $asOf))
             ->whereIn('kind', [TradeKind::Payment->value, TradeKind::Return->value, TradeKind::Refund->value])
             ->select('source_id', 'kind')->selectRaw('SUM(total) AS amount')
             ->groupBy('source_id', 'kind')->get()->groupBy('source_id')

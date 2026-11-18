@@ -87,7 +87,7 @@
         <label class="grid max-w-sm gap-2">Jenis data
             <NativeSelect bind:value={kind} disabled={busy} onchange={reset}>
                 <option value="jurnal">Jurnal umum</option>
-                {#if supervisor}<option value="coa">Chart of Accounts</option><option value="saldo-awal">Saldo awal akun</option>{/if}
+                {#if supervisor}<option value="kontak">Pelanggan &amp; pemasok</option><option value="coa">Chart of Accounts</option><option value="saldo-awal">Saldo awal akun</option>{/if}
             </NativeSelect>
         </label>
         <a class="w-fit underline underline-offset-4" href={template.url([currentTeam.slug, kind])}>Unduh template Excel</a>
