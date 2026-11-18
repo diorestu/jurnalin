@@ -4,6 +4,7 @@ use App\Http\Controllers\AuditController;
 use App\Http\Controllers\ChartOfAccountsController;
 use App\Http\Controllers\CoaExcelController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DataImportController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\JournalDetailController;
 use App\Http\Controllers\JournalDraftController;
@@ -24,6 +25,11 @@ Route::prefix('{current_team}')
     ->middleware(['auth', EnsureTeamMembership::class])
     ->group(function () {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
+        Route::prefix('impor-data')->group(function () {
+            Route::inertia('/', 'Imports')->name('imports.index');
+            Route::get('{kind}/template', [DataImportController::class, 'template'])->whereIn('kind', ['coa', 'jurnal', 'saldo-awal'])->name('imports.template');
+            Route::post('{kind}/{step}', [DataImportController::class, 'upload'])->whereIn('kind', ['coa', 'jurnal', 'saldo-awal'])->whereIn('step', ['preview', 'confirm'])->name('imports.upload');
+        });
         Route::inertia('report', 'Report')->name('reports.index');
         Route::get('report/keuangan', [ReportController::class, 'financial'])->name('reports.financial');
         Route::get('report/laba-rugi', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');

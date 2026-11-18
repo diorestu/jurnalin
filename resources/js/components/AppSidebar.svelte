@@ -8,6 +8,8 @@
     import ListTree from '@lucide/svelte/icons/list-tree';
     import type { Snippet } from 'svelte';
     import AppLogo from '@/components/AppLogo.svelte';
+    import Upload from '@lucide/svelte/icons/upload';
+    import { index as importsIndex } from '@/routes/imports';
     import NavFooter from '@/components/NavFooter.svelte';
     import NavMain from '@/components/NavMain.svelte';
     import NavUser from '@/components/NavUser.svelte';
@@ -49,6 +51,7 @@
 
         if (currentTeam) {
             items.push(
+                { title: 'Impor Data', href: importsIndex(currentTeam.slug), icon: Upload },
                 { title: 'Penjualan & Piutang', href: tradeIndex([currentTeam.slug, 'penjualan']), icon: ShoppingCart },
                 { title: 'Pembelian & Utang', href: tradeIndex([currentTeam.slug, 'pembelian']), icon: Truck },
             );

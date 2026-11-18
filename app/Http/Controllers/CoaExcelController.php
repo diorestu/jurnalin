@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Accounting\RecordAccountingAudit;
+use App\Actions\Imports\WorkbookRows;
 use App\Enums\AccountType;
 use App\Models\Team;
 use Illuminate\Http\RedirectResponse;
@@ -13,11 +14,9 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use ZipArchive;
 
 class CoaExcelController extends Controller
 {
@@ -72,59 +71,19 @@ class CoaExcelController extends Controller
     {
         $request->validate(['file' => ['required', 'file', 'mimes:xlsx', 'max:5120']]);
         $path = $request->file('file')->getRealPath();
-        $zip = new ZipArchive;
-        if ($zip->open($path) !== true) {
-            throw ValidationException::withMessages(['file' => 'File Excel tidak valid.']);
-        }
-        $bytes = 0;
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $bytes += ($zip->statIndex($i)['size'] ?? 0);
-        }
-        $zip->close();
-        if ($bytes > 30 * 1024 * 1024) {
-            throw ValidationException::withMessages(['file' => 'Isi file Excel terlalu besar.']);
-        }
+        $rows = app(WorkbookRows::class)->read($path, 'COA', self::HEADERS, 5000);
+        [$added, $skipped] = $this->applyRows($current_team, $request->user()->id, $rows);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $added.' akun ditambahkan, '.$skipped.' kode yang sudah ada dilewati.']);
 
-        $book = null;
-        try {
-            $reader = IOFactory::createReader('Xlsx');
-            $info = collect($reader->listWorksheetInfo($path))->firstWhere('worksheetName', 'COA');
-            if ($info === null || $info['totalRows'] > 5001 || $info['totalColumns'] > 5) {
-                throw ValidationException::withMessages(['file' => 'Gunakan sheet COA dengan lima kolom dan maksimal 5.000 akun.']);
-            }
-            $reader->setLoadSheetsOnly('COA');
-            $book = $reader->load($path);
-            $sheet = $book->getSheetByName('COA');
-            $rows = [];
-            foreach (range(1, max(1, $info['totalRows'])) as $row) {
-                $values = [];
-                for ($col = 1; $col <= 5; $col++) {
-                    $cell = $sheet->getCell([$col, $row]);
-                    if ($cell->getDataType() === DataType::TYPE_FORMULA) {
-                        throw ValidationException::withMessages(['file' => 'Baris '.$row.': gunakan nilai biasa, bukan formula Excel.']);
-                    }
-                    $values[] = trim((string) $cell->getValue());
-                }
-                if ($row === 1 && $values !== self::HEADERS) {
-                    throw ValidationException::withMessages(['file' => 'Header harus kode, nama, jenis, aktif, kas_bank. Unduh template untuk memulai.']);
-                }
-                if ($row > 1 && array_filter($values, fn ($value) => $value !== '') !== []) {
-                    $rows[$row] = $values;
-                }
-            }
-        } catch (ValidationException $error) {
-            throw $error;
-        } catch (\Throwable $error) {
-            report($error);
-            throw ValidationException::withMessages(['file' => 'File tidak dapat dibaca. Gunakan template Excel yang tersedia.']);
-        } finally {
-            $book?->disconnectWorksheets();
-        }
-        if ($rows === []) {
-            throw ValidationException::withMessages(['file' => 'File belum berisi akun.']);
-        }
+        return to_route('chart-of-accounts.index', $current_team);
+    }
 
-        [$added, $skipped] = DB::transaction(function () use ($current_team, $request, $rows) {
+    /** @param array<int, list<string>> $rows
+     * @return array{int,int}
+     */
+    public function applyRows(Team $current_team, int $userId, array $rows, bool $preview = false): array
+    {
+        return DB::transaction(function () use ($current_team, $userId, $rows, $preview) {
             Team::whereKey($current_team->id)->lockForUpdate()->firstOrFail();
             $existing = DB::table('journal_accounts')->where('team_id', $current_team->id)->pluck('code')->map(fn ($code) => strtoupper($code))->flip();
             $pending = [];
@@ -154,15 +113,15 @@ class CoaExcelController extends Controller
                 }
                 $pending[] = [...$data, 'active' => $active === '1', 'is_cash' => $cash === '1'];
             }
+            if ($preview) {
+                return [count($pending), $skipped];
+            }
             foreach ($pending as $data) {
                 $id = DB::table('journal_accounts')->insertGetId(['team_id' => $current_team->id, ...$data]);
-                app(RecordAccountingAudit::class)->record($current_team->id, $request->user()->id, 'account.imported', 'account', $id, null, $data);
+                app(RecordAccountingAudit::class)->record($current_team->id, $userId, 'account.imported', 'account', $id, null, $data);
             }
 
             return [count($pending), $skipped];
         }, attempts: 5);
-        Inertia::flash('toast', ['type' => 'success', 'message' => $added.' akun ditambahkan, '.$skipped.' kode yang sudah ada dilewati.']);
-
-        return to_route('chart-of-accounts.index', $current_team);
     }
 }
