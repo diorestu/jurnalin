@@ -30,6 +30,7 @@ class ReverseJournal
                 throw ValidationException::withMessages(['journal' => 'Jurnal ini sudah memiliki jurnal pembalik.']);
             }
             if ($entry->reversal_of_id !== null || DB::table('trade_documents')->where('journal_entry_id', $journal)->exists()
+                || DB::table('asset_depreciations')->where('journal_entry_id', $journal)->exists()
                 || DB::table('opening_balances')->where('journal_entry_id', $journal)->exists()) {
                 throw ValidationException::withMessages(['journal' => 'Koreksi jurnal ini melalui dokumen sumber atau jurnal penyesuaian.']);
             }

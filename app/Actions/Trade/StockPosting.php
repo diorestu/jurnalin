@@ -22,6 +22,7 @@ class StockPosting
         $doc = DB::table('trade_documents')->where('id', $document)->firstOrFail();
         foreach (DB::table('trade_document_lines')->where('document_id', $document)->whereNotNull('item_id')->orderBy('id')->get() as $line) {
             $item = DB::table('catalog_items')->where('team_id', $team)->where('id', $line->item_id)->firstOrFail();
+            $netPrice = (int) $line->total - (int) $line->tax_amount;
             $source = $line->source_line_id ? DB::table('trade_document_lines')->where('id', $line->source_line_id)->firstOrFail() : null;
             if (! in_array($kind, [TradeKind::Receipt, TradeKind::Delivery, TradeKind::Invoice, TradeKind::Return], true)) {
                 continue;
@@ -39,7 +40,7 @@ class StockPosting
                 if ((int) $base !== (int) $account) {
                     $debit = ($sales === ($kind === TradeKind::Invoice)) ? $base : $account;
                     $credit = $debit === $base ? $account : $base;
-                    $this->pair($adjustments, $debit, $credit, $line->total);
+                    $this->pair($adjustments, $debit, $credit, $netPrice);
                 }
             }
             if ($item->stock) {
@@ -55,19 +56,19 @@ class StockPosting
                     if (! $inbound && $line->quantity > $qty) {
                         throw ValidationException::withMessages(['lines' => "Stok $item->sku tersedia $qty $item->unit."]);
                     }
-                    $cost = $inbound ? ($kind === TradeKind::Return ? $this->allocatedCost($source, $line, $kind) : $line->total) : $this->prorate($value, $line->quantity, $qty);
+                    $cost = $inbound ? ($kind === TradeKind::Return ? $this->allocatedCost($source, $line, $kind) : $netPrice) : $this->prorate($value, $line->quantity, $qty);
                     DB::table('stock_movements')->insert(['item_id' => $item->id, 'line_id' => $line->id, 'reason' => $kind->label($direction), 'date' => $date, 'quantity' => $inbound ? $line->quantity : -$line->quantity, 'value' => $inbound ? $cost : -$cost]);
                 } else {
                     $cost = $this->allocatedCost($source, $line, $kind);
                 }
-                if (($sales && in_array($kind, [TradeKind::Invoice, TradeKind::Return], true)) || (! $sales && $kind === TradeKind::Return && $line->total !== $cost)) {
+                if (($sales && in_array($kind, [TradeKind::Invoice, TradeKind::Return], true)) || (! $sales && $kind === TradeKind::Return && $netPrice !== $cost)) {
                     $expense = $kind === TradeKind::Return ? ($source->cost_account ?? $item->expense_account) : $item->expense_account;
                     $expense ??= DB::table('journal_accounts')->where('team_id', $team)->where('code', '5101')->where('type', 'expense')->value('id');
                     if (! $expense) {
                         throw ValidationException::withMessages(['lines' => "Atur akun HPP untuk $item->sku."]);
                     }
                     $inventory = $this->journal->inventoryAccountId($team);
-                    $delta = $sales ? ($kind === TradeKind::Invoice ? $cost : -$cost) : ($cost - $line->total);
+                    $delta = $sales ? ($kind === TradeKind::Invoice ? $cost : -$cost) : ($cost - $netPrice);
                     $this->pair($adjustments, $delta > 0 ? $expense : $inventory, $delta > 0 ? $inventory : $expense, BigInteger::of($delta)->abs()->toInt());
                 }
             }

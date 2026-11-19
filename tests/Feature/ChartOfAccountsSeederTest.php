@@ -30,7 +30,7 @@ it('provisions a product and service chart alongside the original journal templa
         ]);
     }
 
-    expect((clone $accounts)->whereNotNull('trade_role')->count())->toBe(5);
+    expect((clone $accounts)->whereNotNull('trade_role')->count())->toBe(8);
     $this->assertDatabaseHas('journal_accounts', ['team_id' => $team->id, 'code' => '1103', 'is_cash' => true]);
     $this->assertDatabaseCount('journal_templates', 4);
 });

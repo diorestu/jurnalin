@@ -32,6 +32,7 @@
     import { AccountSelect, NativeSelect } from '@/components/ui/select';
 
     type DraftLine = {
+        unit_discount?:number; tax_code?:string|null; tax_bps?:number; tax_included?:boolean;
         itemId?:number|null;
         key: number;
         sourceLineId: number | null;
@@ -65,7 +66,7 @@
         editingDraft: { id: number; version: number; data: {
             kind: string; partner?: string; partner_id?: number; date: string; due_date?: string | null; reference?: string | null; notes_delta?: string | null;
             amount?: number | null; account_id?: number | null;
-            lines?: { item_id?:number|null; name?: string; quantity: number; unit_price?: number; source_line_id?: number | null }[];
+            lines?: { unit_discount?:number; tax_code?:string|null; tax_bps?:number; tax_included?:boolean; item_id?:number|null; name?: string; quantity: number; unit_price?: number; source_line_id?: number | null }[];
         } } | null;
         kinds: Kind[];
         selectedKind: string;
@@ -117,13 +118,14 @@
     let lines = $state<DraftLine[]>(untrack(() => initial
         ? (initial.lines ?? []).map(line => {
             const original = source?.lines.find(item => item.id === line.source_line_id);
-            return { key: nextKey++, sourceLineId: line.source_line_id ?? null, itemId:line.item_id,
+            return { ...line,...original, key: nextKey++, sourceLineId: line.source_line_id ?? null, itemId:line.item_id,
                 name: original?.name ?? line.name ?? '', quantity: line.quantity,
                 unitPrice: Number(original?.unit_price ?? line.unit_price ?? 0),
                 remaining: original ? Number(original.remaining) : null };
         })
         : source
         ? source.lines.map((line) => ({
+            ...line, tax_included:Boolean(line.tax_included),
             key: nextKey++,
             sourceLineId: line.id,
             name: line.name,
@@ -152,7 +154,16 @@
     function lineTotal(line: DraftLine): bigint {
         if (!Number.isSafeInteger(line.quantity) || !Number.isSafeInteger(line.unitPrice)) return 0n;
 
-        return BigInt(line.quantity ?? 0) * BigInt(line.unitPrice ?? 0);
+        const qty=BigInt(line.quantity??0);
+        const base=qty*(BigInt(line.unitPrice??0)-BigInt(line.unit_discount??0));
+        if (line.tax_included) return base;
+        const orig=source?.lines.find(l=>l.id===line.sourceLineId);
+        if(orig){
+            const units=BigInt(orig.quantity), used=units-BigInt(orig.remaining);
+            const share=(n:bigint)=>(BigInt(orig.tax_amount??0)*n+units/2n)/units;
+            return base+share(used+qty)-share(used);
+        }
+        return base+(base*BigInt(line.tax_bps??0)+5000n)/10000n;
     }
 
     function lineErrors(line: DraftLine): string {
@@ -194,6 +205,7 @@
                 name: line.name,item_id:line.itemId??null,
                 quantity: line.quantity ?? 0,
                 unit_price: line.unitPrice ?? 0,
+                unit_discount:line.unit_discount??0,tax_code:line.tax_code??null,tax_bps:line.tax_bps??0,tax_included:Boolean(line.tax_included),
                 source_line_id: line.sourceLineId,
             })),
             amount: moneyOnly ? amount ?? null : null,
@@ -369,6 +381,13 @@
                                         <Trash2 class="size-4" aria-hidden="true" />
                                     </Button>
                                 {/if}
+                            </div>
+                            <div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <label>Diskon per satuan<NumberInput currency bind:value={line.unit_discount} max={line.unitPrice??0} readonly={!!source}/></label>
+                                <label>Kode pajak<Input bind:value={line.tax_code} maxlength={30} readonly={!!source} placeholder="Mis. PPN"/></label>
+                                <label>Tarif (%)<Input type="text" inputmode="decimal" pattern={'[0-9]{1,3}([.,][0-9]{1,2})?'} value={String((line.tax_bps??0)/100)} readonly={!!source}
+                                    onchange={e=>{const rate=Number(e.currentTarget.value.replace(',','.'));line.tax_bps=Number.isFinite(rate)?Math.round(rate*100):0;}}/></label>
+                                <label class="flex items-center gap-2"><input type="checkbox" bind:checked={line.tax_included} disabled={!!source}/>Harga termasuk pajak</label>
                             </div>
                             <InputError message={lineErrors(line)} class="mt-2" />
                         </div>

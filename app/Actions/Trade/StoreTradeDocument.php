@@ -112,7 +112,7 @@ class StoreTradeDocument
                 ));
             }
 
-            $applied = $direction === TradeDirection::Sales && $kind === TradeKind::Invoice && $orderId !== null
+            $applied = $kind === TradeKind::Invoice && $orderId !== null
                 ? $this->applyAdvances((int) $orderId, $id, $total)
                 : 0;
             $stockLines = app(StockPosting::class)->record($team->id, $id, $direction, $kind, $data['date']);
@@ -197,8 +197,8 @@ class StoreTradeDocument
                 $price = (int) $line->unit_price;
             }
 
-            $subtotal = $quantity * $price;
-            $total += $subtotal;
+            $pricing = LinePricing::calculate($input, $price, $quantity, $source === null ? null : $line);
+            $total += $pricing['total'];
             if ($total > self::MAX_AMOUNT) {
                 throw ValidationException::withMessages(['lines' => 'Total dokumen melebihi batas nominal rupiah.']);
             }
@@ -207,7 +207,7 @@ class StoreTradeDocument
                 'name' => $name,
                 'quantity' => $quantity,
                 'unit_price' => $price,
-                'total' => $subtotal,
+                ...$pricing,
                 'source_line_id' => $sourceLineId,
                 'item_id' => $itemId,
             ];

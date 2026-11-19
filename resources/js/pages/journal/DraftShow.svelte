@@ -25,7 +25,7 @@
         trade?: {
             label: string; directionLabel: string; partner: string; amount: number | string;
             sourceUrl: string | null; sourceNumber: string | null;
-            lines: { name: string; quantity: number; unit_price: number }[];
+            lines: { name: string; quantity: number; unit_price: number;tax_code?:string;tax_amount?:number;unit_discount?:number }[];
             accountLabel: string | null; dueDate: string | null; reference: string | null; notes: string | null;
         };
     };
@@ -176,7 +176,7 @@
                         </tr></thead>
                         <tbody class="divide-y">
                             {#each draft.trade.lines as line, index (index)}
-                                <tr><td class="break-words px-4 py-3">{line.name}</td><td class="px-4 py-3 text-right tabular-nums">{line.quantity}</td><td class="px-4 py-3 text-right whitespace-nowrap tabular-nums">IDR {money.format(BigInt(line.unit_price))}</td></tr>
+                                <tr><td class="break-words px-4 py-3">{line.name}{#if line.tax_code || line.unit_discount}<small class="block">Diskon/unit IDR {money.format(line.unit_discount??0)} · {line.tax_code??'Tanpa pajak'} IDR {money.format(line.tax_amount??0)}</small>{/if}</td><td class="px-4 py-3 text-right tabular-nums">{line.quantity}</td><td class="px-4 py-3 text-right whitespace-nowrap tabular-nums">IDR {money.format(BigInt(line.unit_price))}</td></tr>
                             {/each}
                         </tbody>
                     </table>

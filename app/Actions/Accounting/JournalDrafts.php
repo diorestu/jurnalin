@@ -89,7 +89,7 @@ class JournalDrafts
             if ($action === 'submit') {
                 $this->dates->assertAfter($team->id, $data['date']);
             }
-            $payload = ['direction' => $direction->value, 'data' => $data, 'date' => $data['date'],
+            $payload = ['direction' => $direction->value, 'data' => $data, 'pricing_preview' => ['lines'=>$preview['lines'],'amount'=>$preview['amount']], 'date' => $data['date'],
                 'description' => $preview['label'].' · '.$preview['partner']];
 
             if ($draftId !== null) {

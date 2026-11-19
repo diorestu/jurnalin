@@ -157,6 +157,9 @@ class TradeController extends Controller
         }
 
         return Inertia::render('trade/Show', [
+            'pdfUrl' => route('trade.pdf', [$current_team, $direction, $document]),
+            'uploadUrl' => route('trade.attachments.upload', [$current_team, $direction, $document]),
+            'attachments' => DB::table('trade_attachments as a')->join('users as u', 'u.id', '=', 'a.uploaded_by')->where('a.document_id', $document)->orderByDesc('a.id')->get(['a.id', 'a.name', 'a.size', 'a.created_at', 'u.name as uploader'])->map(fn ($a) => [...(array) $a, 'url' => route('trade.attachments.download', [$current_team, $direction, $document, $a->id])]),
             ...$this->pageProps($current_team, $direction),
             'document' => [
                 ...$this->summary($current_team, $direction, $record, $balances[$document] ?? null),
@@ -174,7 +177,7 @@ class TradeController extends Controller
                     'url' => route('opening-balances.show', [$current_team, $opening->id]),
                 ]),
                 'lines' => DB::table('trade_document_lines')->where('document_id', $document)->orderBy('id')
-                    ->get(['id', 'name', 'quantity', 'unit_price', 'total']),
+                    ->get(['id', 'name', 'quantity', 'unit_price', 'total', 'unit_discount', 'tax_code', 'tax_bps', 'tax_amount', 'tax_included']),
                 'journalId' => $journalId === null ? null : (int) $journalId,
                 'journalUrl' => $journalId === null ? null : route('journals.show', [$current_team, $journalId]),
             ],
@@ -200,7 +203,11 @@ class TradeController extends Controller
             'notes' => ['nullable', 'string', 'max:'.TradeNotes::MAX_LENGTH],
             'notes_delta' => ['nullable', 'string', 'json', 'max:40000'],
             'lines' => ['nullable', 'array', 'list', 'max:50'],
-            'lines.*' => ['array:name,quantity,unit_price,source_line_id,item_id'],
+            'lines.*' => ['array:name,quantity,unit_price,source_line_id,item_id,unit_discount,tax_code,tax_bps,tax_included'],
+            'lines.*.unit_discount' => ['nullable', 'integer', 'between:0,999999999999'],
+            'lines.*.tax_code' => ['nullable', 'string', 'max:30'],
+            'lines.*.tax_bps' => ['nullable', 'integer', 'between:0,10000'],
+            'lines.*.tax_included' => ['nullable', 'boolean'],
             'lines.*.item_id' => ['nullable', 'integer', Rule::exists('catalog_items', 'id')->where('team_id', $current_team->id)],
             'lines.*.source_line_id' => ['nullable', 'integer', 'min:1'],
             'lines.*.name' => ['nullable', 'string', 'max:160'],

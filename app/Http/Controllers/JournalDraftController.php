@@ -56,6 +56,8 @@ class JournalDraftController extends Controller
             }
             $amount = $kind->isCash() ? (int) $data['amount'] : array_reduce($lines, fn ($sum, $line) => $sum + (int) $line['quantity'] * (int) $line['unit_price'], 0);
             $account = isset($data['account_id']) ? DB::table('journal_accounts')->where('team_id', $current_team->id)->where('id', $data['account_id'])->first() : null;
+            $lines=$payload['pricing_preview']['lines']??$lines;
+            $amount=$payload['pricing_preview']['amount']??$amount;
             $trade = [
                 'label' => $kind->label($direction), 'directionLabel' => $direction->label(),
                 'partner' => $source->partner ?? $data['partner'] ?? '', 'amount' => $amount, 'lines' => $lines,

@@ -25,7 +25,7 @@ enum TradeKind: string
             self::Delivery => 'Pengiriman',
             self::Receipt => 'Penerimaan Barang',
             self::Invoice => $sales ? 'Faktur Penjualan' : 'Tagihan Pemasok',
-            self::Advance => 'Uang Muka Pelanggan',
+            self::Advance => $sales ? 'Uang Muka Pelanggan' : 'Uang Muka Pemasok',
             self::Payment => $sales ? 'Penerimaan Piutang' : 'Pembayaran Utang',
             self::Return => $sales ? 'Retur Penjualan' : 'Retur Pembelian',
             self::Refund => $sales ? 'Pengembalian Dana Pelanggan' : 'Penerimaan Dana Retur',
@@ -71,11 +71,11 @@ enum TradeKind: string
 
         return match ($this) {
             self::Quotation => $sales ? [self::Order] : [],
-            self::Order => $sales ? [self::Delivery, self::Advance] : [self::Receipt],
+            self::Order => $sales ? [self::Delivery, self::Advance] : [self::Receipt, self::Advance],
             self::Delivery => $sales ? [self::Invoice] : [],
             self::Receipt => $sales ? [] : [self::Invoice],
             self::Invoice => [self::Payment, self::Return, self::Refund],
-            self::Advance => $sales ? [self::AdvanceRefund] : [],
+            self::Advance => [self::AdvanceRefund],
             default => [],
         };
     }

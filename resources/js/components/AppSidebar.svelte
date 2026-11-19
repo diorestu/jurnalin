@@ -10,6 +10,8 @@
     import {index as catalogIndex} from '@/routes/catalog';
     import Package from '@lucide/svelte/icons/package';
     import AppLogo from '@/components/AppLogo.svelte';
+    import {index as assetsIndex} from '@/routes/assets';
+    import Building from '@lucide/svelte/icons/building';
     import { index as bankIndex } from '@/routes/bank';
     import Landmark from '@lucide/svelte/icons/landmark';
     import { index as partnerIndex } from '@/routes/partners';
@@ -57,6 +59,7 @@
 
         if (currentTeam) {
             items.push(
+                {title:'Aset Tetap',href:assetsIndex(currentTeam.slug),icon:Building},
                 {title:'Barang & Jasa',href:catalogIndex(currentTeam.slug),icon:Package},
                 { title: 'Kas & Bank', href: bankIndex(currentTeam.slug), icon: Landmark },
                 { title: 'Pelanggan & Pemasok', href: partnerIndex(currentTeam.slug), icon: Users },

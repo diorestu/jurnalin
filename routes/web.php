@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AgingController;
+use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\CatalogController;
@@ -13,12 +14,14 @@ use App\Http\Controllers\JournalDetailController;
 use App\Http\Controllers\JournalDraftController;
 use App\Http\Controllers\JournalReversalController;
 use App\Http\Controllers\JournalTemplateController;
+use App\Http\Controllers\MovementReportController;
 use App\Http\Controllers\OpeningBalancesController;
 use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\PeriodController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\TradeController;
+use App\Http\Controllers\TradeFileController;
 use App\Http\Controllers\TrialBalanceController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +32,11 @@ Route::prefix('{current_team}')
     ->middleware(['auth', EnsureTeamMembership::class])
     ->group(function () {
         Route::get('dashboard', DashboardController::class)->name('dashboard');
+        Route::get('report/mutasi/{type}', [MovementReportController::class, 'index'])->whereIn('type', ['arus-kas', 'perubahan-ekuitas'])->name('reports.movements');
+        Route::patch('report/arus-kas/{entry}', [MovementReportController::class, 'classify'])->whereNumber('entry')->middleware(EnsureTeamMembership::class.':admin')->name('reports.classify');
+        Route::get('aset-tetap', [AssetController::class, 'index'])->name('assets.index');
+        Route::post('aset-tetap', [AssetController::class, 'store'])->middleware(EnsureTeamMembership::class.':admin')->name('assets.store');
+        Route::post('aset-tetap/{asset}/susutkan', [AssetController::class, 'post'])->whereNumber('asset')->middleware(EnsureTeamMembership::class.':admin')->name('assets.depreciate');
         Route::get('barang-jasa', [CatalogController::class, 'index'])->name('catalog.index');
         Route::post('barang-jasa/{item?}', [CatalogController::class, 'save'])->whereNumber('item')->middleware(EnsureTeamMembership::class.':admin')->name('catalog.save');
         Route::get('kas-bank', [BankController::class, 'index'])->name('bank.index');
@@ -73,6 +81,9 @@ Route::prefix('{current_team}')
                 Route::get('/', [TradeController::class, 'index'])->name('index');
                 Route::get('baru', [TradeController::class, 'create'])->name('create');
                 Route::get('{document}', [TradeController::class, 'show'])->whereNumber('document')->name('show');
+                Route::get('{document}/pdf', [TradeFileController::class, 'pdf'])->whereNumber('document')->name('pdf');
+                Route::post('{document}/lampiran', [TradeFileController::class, 'upload'])->whereNumber('document')->name('attachments.upload');
+                Route::get('{document}/lampiran/{attachment}', [TradeFileController::class, 'download'])->whereNumber(['document', 'attachment'])->name('attachments.download');
                 Route::post('/', [TradeController::class, 'store'])->name('store');
             });
 

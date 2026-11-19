@@ -12,6 +12,7 @@
 <script lang="ts">
     import { Link } from '@inertiajs/svelte';
     import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+    import Attachments from '@/components/trade/Attachments.svelte';
     import AppHead from '@/components/AppHead.svelte';
     import {
         formatDate,
@@ -31,6 +32,7 @@
         document,
         actions,
         related,
+        pdfUrl,uploadUrl,attachments,
     }: {
         direction: Direction;
         title: string;
@@ -38,6 +40,7 @@
         document: Detail;
         actions: { label: string; url: string }[];
         related: Summary[];
+        pdfUrl:string;uploadUrl:string;attachments:{id:number;name:string;url:string;size:number;uploader:string;created_at:string}[];
     } = $props();
 </script>
 
@@ -65,6 +68,7 @@
                 {/each}
             </div>
         {/if}
+        <a class="rounded-md border px-4 py-2 text-sm font-medium" href={pdfUrl} target="_blank" rel="noopener">Cetak / simpan PDF</a>
     </header>
 
     <section class="rounded-xl border bg-card p-4 text-card-foreground sm:p-5" aria-labelledby="trade-document-heading">
@@ -129,7 +133,7 @@
                     <tbody class="divide-y">
                         {#each document.lines as line (line.id)}
                             <tr>
-                                <td class="px-4 py-3 sm:px-5">{line.name}</td>
+                                <td class="px-4 py-3 sm:px-5">{line.name}{#if line.unit_discount || line.tax_code}<small class="block text-muted-foreground">Diskon/unit {rupiah(line.unit_discount??0)} · {line.tax_code??"Tanpa pajak"} {(line.tax_bps??0)/100}% · Pajak {rupiah(line.tax_amount??0)}</small>{/if}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{line.quantity}</td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap tabular-nums">{rupiah(line.unit_price)}</td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap tabular-nums sm:px-5">{rupiah(line.total)}</td>
@@ -181,4 +185,5 @@
             </ul>
         </section>
     {/if}
+    {#key uploadUrl}<Attachments url={uploadUrl} files={attachments}/>{/key}
 </main>

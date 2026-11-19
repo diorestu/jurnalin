@@ -13,11 +13,13 @@
     import { Link } from '@inertiajs/svelte';
     import ArrowRight from '@lucide/svelte/icons/arrow-right';
     import AppHead from '@/components/AppHead.svelte';
-    import { aging, financial, profitLoss, ledger, trial } from '@/routes/reports';
+    import { movements, aging, financial, profitLoss, ledger, trial } from '@/routes/reports';
 
     let { currentTeam }: { currentTeam: Team } = $props();
 
     const reports = $derived([
+        {label:'Arus Kas',description:'Arus operasi, investasi dan pendanaan serta saldo kas/bank.',href:movements([currentTeam.slug,'arus-kas'])},
+        {label:'Perubahan Ekuitas',description:'Ekuitas awal, mutasi modal, laba rugi dan ekuitas akhir.',href:movements([currentTeam.slug,'perubahan-ekuitas'])},
         { label: 'Umur Piutang & Utang', description: 'Sisa faktur dan kelompok jatuh tempo per tanggal laporan.', href: aging(currentTeam.slug) },
         { label: 'Neraca Saldo', description: 'Saldo awal, mutasi, dan saldo akhir debit/kredit seluruh akun.', href: trial(currentTeam.slug) },
         { label: 'Laporan Keuangan', description: 'Neraca aset, liabilitas, dan ekuitas pada akhir bulan atau tahun pilihan.', href: financial(currentTeam.slug) },

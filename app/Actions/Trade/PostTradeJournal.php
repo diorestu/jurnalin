@@ -28,18 +28,21 @@ class PostTradeJournal
         $counterpartyAccount = fn () => $account($sales ? 'receivable' : 'payable');
         $selected = fn (?int $id) => $this->getAccount($teamId, $id);
 
+        $tax = in_array($kind, [TradeKind::Invoice, TradeKind::Return], true)
+            ? (int) DB::table('trade_document_lines')->where('document_id', $document->id)->sum('tax_amount') : 0;
+        $base = $total - $tax;
         [$debit, $credit] = match ($kind) {
             TradeKind::Invoice => $sales
-                ? [[$counterpartyAccount(), $total - $applied], [$account('sales'), $total]]
-                : [[$selected($document->account_id), $total], [$counterpartyAccount(), $total]],
-            TradeKind::Advance => [[$selected($document->account_id), $total], [$account('advance'), $total]],
-            TradeKind::AdvanceRefund => [[$account('advance'), $total], [$selected($document->account_id), $total]],
+                ? [[$counterpartyAccount(), $total - $applied], [$account('sales'), $base]]
+                : [[$selected($document->account_id), $base], [$counterpartyAccount(), $total - $applied]],
+            TradeKind::Advance => ! $sales ? [[$account('supplier_advance'), $total], [$selected($document->account_id), $total]] : [[$selected($document->account_id), $total], [$account('advance'), $total]],
+            TradeKind::AdvanceRefund => ! $sales ? [[$selected($document->account_id), $total], [$account('supplier_advance'), $total]] : [[$account('advance'), $total], [$selected($document->account_id), $total]],
             TradeKind::Payment => $sales
                 ? [[$selected($document->account_id), $total], [$counterpartyAccount(), $total]]
                 : [[$counterpartyAccount(), $total], [$selected($document->account_id), $total]],
             TradeKind::Return => $sales
-                ? [[$account('sales'), $total], [$counterpartyAccount(), $total]]
-                : [[$counterpartyAccount(), $total], [$this->getAccount($teamId, $source?->account_id, requireActive: false), $total]],
+                ? [[$account('sales'), $base], [$counterpartyAccount(), $total]]
+                : [[$counterpartyAccount(), $total], [$this->getAccount($teamId, $source?->account_id, requireActive: false), $base]],
             TradeKind::Refund => $sales
                 ? [[$counterpartyAccount(), $total], [$selected($document->account_id), $total]]
                 : [[$selected($document->account_id), $total], [$counterpartyAccount(), $total]],
@@ -54,8 +57,11 @@ class PostTradeJournal
             $this->line($debit[0], 'debit', $debit[1]),
             $this->line($credit[0], 'credit', $credit[1]),
         ];
+        if ($tax > 0) {
+            $lines[] = $this->line($account($sales ? 'vat_output' : 'vat_input'), $sales === ($kind === TradeKind::Invoice) ? 'credit' : 'debit', $tax);
+        }
         if ($applied > 0) {
-            array_splice($lines, 1, 0, [$this->line($account('advance'), 'debit', $applied)]);
+            array_splice($lines, 1, 0, [$this->line($account($sales ? 'advance' : 'supplier_advance'), $sales ? 'debit' : 'credit', $applied)]);
         }
 
         if ($adjustments) {

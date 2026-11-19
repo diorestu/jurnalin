@@ -16,6 +16,7 @@ export type Summary = {
 export type Kind = { value: string; label: string };
 export type Account = { id: number; code: string; name: string };
 
+export type Pricing = { unit_discount?:number; tax_code?:string|null; tax_bps?:number; tax_included?:boolean; tax_amount?:number };
 export type Detail = Summary & {
     due_date: string | null;
     reference: string | null;
@@ -27,13 +28,13 @@ export type Detail = Summary & {
     appliedAdvance: Money;
     availableAmount: Money | null;
     source: { number: string; url: string } | null;
-    lines: {
+    lines: (Pricing & {
         id: number;
         name: string;
         quantity: Money;
         unit_price: Money;
         total: Money;
-    }[];
+    })[];
     journalId: number | null;
     journalUrl: string | null;
 };
@@ -44,13 +45,13 @@ export type Source = {
     number: string;
     partner: string;
     date: string;
-    lines: {
+    lines: (Pricing & {
         id: number;
         name: string;
         quantity: Money;
         unit_price: Money;
         remaining: Money;
-    }[];
+    })[];
     availableAmount: Money | null;
 };
 
